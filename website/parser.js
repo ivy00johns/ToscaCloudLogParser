@@ -1175,109 +1175,251 @@ class ToscaLogParser {
 		const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
 		const filteredTableData = searchTerm ? 
 			tableData.filter(row => 
-				row.message.toLowerCase().includes(searchTerm) ||
 				row.operation.toLowerCase().includes(searchTerm) ||
 				(row.testCase && row.testCase.toLowerCase().includes(searchTerm)) ||
 				row.level.toString().includes(searchTerm)
 			) : tableData;
 
-		// Generate table HTML
-		const tableHTML = this.generateTableHTML(filteredTableData);
+		// Extract test case name for header (remove test case rows from table)
+		let testCaseName = '';
+		const nonTestCaseData = filteredTableData.filter(row => {
+			if (row.rowType === 'testcase') {
+				testCaseName = row.operation;
+				return false; // Remove from table
+			}
+			return true; // Keep in table
+		});
+
+		// Generate table HTML with test case header
+		const tableHTML = this.generateTableHTML(nonTestCaseData, testCaseName);
 		tableContainer.innerHTML = tableHTML;
 	}
 
 	parseLogsForTable(logText) {
 		const lines = logText.split('\n');
-		const tableData = [];
+		const condensedData = [];
 		let lineNumber = 0;
 		const contextStack = [];
 		let currentTestCase = '';
+		let currentAction = null; // Track current main action for condensing
 
 		lines.forEach(line => {
 			lineNumber++;
 			if (!line.trim()) return;
 
-			const indentLevel = this.getIndentLevel(line);
-			const trimmedLine = line.trim();
+			// First, strip the timestamp and log prefix
+			const cleanedLine = this.stripLogPrefix(line);
+			if (!cleanedLine) return; // Skip if nothing meaningful left
+
+			const indentLevel = this.getIndentLevel(line); // Use original line for indent
 			
 			// Skip lines that are just metadata or noise
-			if (trimmedLine.includes('[DURATION:') ||
-				trimmedLine.match(/^\[INF\]\[TBox\]\s*$/) ||
-				trimmedLine.includes('has been performed successfully')) {
+			if (cleanedLine.includes('[DURATION:') ||
+				cleanedLine.includes('has been performed successfully')) {
 				return;
 			}
 
 			// Update context stack based on indentation
-			this.updateTableContextStack(contextStack, indentLevel, trimmedLine);
-
-			// Extract key information
-			const timestamp = this.extractTimestamp(line);
-			const logLevel = this.extractLogLevel(trimmedLine);
-			const status = this.extractStatus(trimmedLine);
-			const operation = this.extractOperation(trimmedLine);
-			const message = this.extractMessage(trimmedLine);
-			const duration = this.extractDuration(trimmedLine);
+			this.updateTableContextStack(contextStack, indentLevel, cleanedLine);
 
 			// Track current test case
-			const testCaseMatch = trimmedLine.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+			const testCaseMatch = cleanedLine.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
 			if (testCaseMatch) {
 				currentTestCase = testCaseMatch[1];
+				// Add test case as its own row
+				condensedData.push({
+					lineNumber,
+					level: 0,
+					operation: testCaseMatch[1],
+					testCase: currentTestCase,
+					rowType: 'testcase',
+					variableName: '',
+					variableValue: '',
+					variableType: '',
+					originalLine: line,
+					context: '',
+					subActions: []
+				});
+				currentAction = null; // Reset current action
+				return;
 			}
 
-			// Determine row type
-			let rowType = 'message';
-			if (trimmedLine.includes('Starting TestCase')) {
+			// Parse the cleaned line
+			const parsedData = this.parseCleanedLogLine(cleanedLine, contextStack);
+			if (!parsedData) return; // Skip if nothing meaningful
+
+			// Handle main operations (level 1) - these get status
+			if (parsedData.rowType === 'operation' && indentLevel <= 4) {
+				condensedData.push({
+					lineNumber,
+					level: indentLevel / 4,
+					operation: parsedData.displayText,
+					testCase: currentTestCase,
+					rowType: 'operation',
+					variableName: parsedData.variableName,
+					variableValue: parsedData.variableValue,
+					variableType: parsedData.variableType,
+					originalLine: line,
+					context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
+				});
+			}
+			// Handle sub-operations (level 2+) - these show operation name and result
+			else if (parsedData.rowType === 'operation' && indentLevel > 4) {
+				const opMatch = parsedData.displayText.match(/(Succeeded|Failed) - (.+)/);
+				if (opMatch) {
+					const status = opMatch[1];
+					const name = opMatch[2];
+					condensedData.push({
+						lineNumber,
+						level: indentLevel / 4,
+						operation: name, // Just the operation name
+						testCase: currentTestCase,
+						rowType: 'sub-operation',
+						variableName: '',
+						variableValue: status, // Status goes in value column
+						variableType: '',
+						originalLine: line,
+						context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
+					});
+				}
+			}
+			// Handle status messages like "Endpoint: Ok"
+			else if (parsedData.rowType === 'status') {
+				const statusMatch = parsedData.displayText.match(/([^:]+):\s*(.+)/);
+				if (statusMatch) {
+					const operationName = statusMatch[1];
+					const result = statusMatch[2];
+					condensedData.push({
+						lineNumber,
+						level: indentLevel / 4,
+						operation: operationName, // Operation name
+						testCase: currentTestCase,
+						rowType: 'status',
+						variableName: '',
+						variableValue: result, // Result (Ok, etc.) goes in value
+						variableType: '',
+						originalLine: line,
+						context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
+					});
+				}
+			}
+			// Handle other meaningful content (messages, variables)
+			else {
+				condensedData.push({
+					lineNumber,
+					level: indentLevel / 4,
+					operation: parsedData.displayText,
+					testCase: currentTestCase,
+					rowType: parsedData.rowType,
+					variableName: parsedData.variableName,
+					variableValue: parsedData.variableValue,
+					variableType: parsedData.variableType,
+					originalLine: line,
+					context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
+				});
+			}
+		});
+
+		return condensedData;
+	}
+
+	stripLogPrefix(line) {
+		// Strip timestamp and [INF][TBox] prefix first
+		// Pattern: 2025-06-24 17:17:59Z [INF][TBox] 
+		let cleaned = line.replace(/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^[]*\[(INF|ERR|WAR|DEB)\]\[TBox\]\s*/, '');
+		
+		// Then strip [DURATION: ...] suffix
+		// Pattern: [DURATION: 00:00:00.1722794]
+		cleaned = cleaned.replace(/\s*\[DURATION:\s*[^\]]+\]\s*$/, '');
+		
+		// If the line is just whitespace after cleaning, return null
+		return cleaned.trim() || null;
+	}
+
+	parseCleanedLogLine(cleanedLine, contextStack) {
+		let rowType = 'message';
+		let displayText = '';
+		let variableName = '';
+		let variableValue = '';
+		let variableType = '';
+
+		// Test Case
+		if (cleanedLine.includes('Starting TestCase')) {
+			const testCaseMatch = cleanedLine.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+			if (testCaseMatch) {
 				rowType = 'testcase';
-			} else if (trimmedLine.includes('[Succeeded]') || trimmedLine.includes('[Failed]')) {
-				rowType = 'operation';
-			} else if (trimmedLine.includes('Buffer with name')) {
-				rowType = 'variable';
-			} else if (trimmedLine.includes('Message:')) {
-				rowType = 'message';
+				displayText = testCaseMatch[1];
 			}
-
-			// Extract buffer variable if present
-			let variableName = '';
-			let variableValue = '';
-			let variableType = '';
-			const bufferMatch = trimmedLine.match(/Buffer with name[:\s]*['"]([^'"]*)['"]\s*has been set to value[:\s]*['"]([^'"]*)['"]/i);
+		}
+		// Operations with status
+		else if (cleanedLine.match(/^\s*\[(Succeeded|Failed)\]/)) {
+			const operationMatch = cleanedLine.match(/^\s*\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+			if (operationMatch) {
+				rowType = 'operation';
+				displayText = `${operationMatch[1]} - ${operationMatch[2]}`;
+			}
+		}
+		// Buffer variables
+		else if (cleanedLine.includes('Buffer with name')) {
+			const bufferMatch = cleanedLine.match(/Buffer with name[:\s]*['"]([^'"]*)['"]\s*has been set to value[:\s]*['"]([^'"]*)['"]/i);
 			if (bufferMatch) {
 				variableName = bufferMatch[1];
 				variableValue = bufferMatch[2];
 				variableType = this.detectVariableType(variableName, variableValue);
+				rowType = 'variable';
+				displayText = `Variable: ${variableName}`;
 			}
+		}
+		// Message lines
+		else if (cleanedLine.includes('Message:')) {
+			const messageContent = cleanedLine.replace(/.*Message:\s*/, '');
+			if (messageContent === 'Ok' || messageContent === 'Verification was successful.') {
+				// For simple status messages, combine with parent operation context
+				if (contextStack.length > 0) {
+					const parentOperation = contextStack[contextStack.length - 1].name;
+					rowType = 'status';
+					displayText = `${parentOperation}: ${messageContent}`;
+				} else {
+					return null; // Skip simple Ok messages without context
+				}
+			} else {
+				rowType = 'message';
+				displayText = messageContent;
+			}
+		}
+		// Other meaningful content
+		else if (cleanedLine.length > 5) {
+			// Skip very short lines or lines that are just whitespace/symbols
+			const meaningfulContent = cleanedLine.replace(/^\s*/, ''); // Remove leading whitespace
+			if (meaningfulContent && !meaningfulContent.match(/^[\s\-\|]+$/)) {
+				rowType = 'message';
+				displayText = meaningfulContent;
+			}
+		}
 
-			tableData.push({
-				lineNumber,
-				timestamp,
-				level: indentLevel / 4, // Convert spaces to level (assuming 4 spaces per level)
-				logLevel,
-				status,
-				operation,
-				message,
-				duration,
-				testCase: currentTestCase,
+		// Return parsed data only if we have something meaningful
+		if (displayText || variableName) {
+			return {
 				rowType,
+				displayText,
 				variableName,
 				variableValue,
-				variableType,
-				originalLine: line,
-				context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
-			});
-		});
+				variableType
+			};
+		}
 
-		return tableData;
+		return null;
 	}
 
-	updateTableContextStack(stack, indentLevel, line) {
+	updateTableContextStack(stack, indentLevel, cleanedLine) {
 		// Remove contexts at deeper or equal levels
 		while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indentLevel) {
 			stack.pop();
 		}
 
 		// Add new context if this is a meaningful operation
-		const testCaseMatch = line.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
-		const operationMatch = line.match(/\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+		const testCaseMatch = cleanedLine.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+		const operationMatch = cleanedLine.match(/\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
 
 		if (testCaseMatch) {
 			stack.push({
@@ -1336,25 +1478,32 @@ class ToscaLogParser {
 		return match ? match[1] : '';
 	}
 
-	generateTableHTML(tableData) {
+	generateTableHTML(tableData, testCaseName = '') {
 		if (tableData.length === 0) {
 			return '<div class="table-view">No matching log entries found</div>';
 		}
 
-		let html = `
-			<div class="table-view-content">
+		let html = `<div class="table-view-content">`;
+		
+		// Add test case header if we have one
+		if (testCaseName) {
+			html += `
+				<div class="test-case-header">
+					<h3>Test Case: ${this.escapeHtml(testCaseName)}</h3>
+				</div>
+			`;
+		}
+
+		html += `
 				<table class="log-table">
 					<thead>
 						<tr>
-							<th>Line</th>
-							<th>Time</th>
-							<th>Level</th>
-							<th>Status</th>
-							<th>Operation/Message</th>
-							<th>Variable</th>
-							<th>Value</th>
-							<th>Type</th>
-							<th>Duration</th>
+							<th style="width: 60px;">Line</th>
+							<th style="width: 80px;">Status</th>
+							<th style="width: 350px;">Operation/Message</th>
+							<th style="width: 130px;">Variable</th>
+							<th style="width: 200px;">Value</th>
+							<th style="width: 70px;">Type</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1362,50 +1511,69 @@ class ToscaLogParser {
 
 		tableData.forEach(row => {
 			const levelClass = `level-${Math.min(row.level, 4)}`;
-			const statusClass = row.status ? `table-status-${row.status.toLowerCase()}` : '';
-			const typeClass = row.logLevel ? `table-type-${row.logLevel.toLowerCase()}` : '';
-			
-			// Format timestamp for display
-			const timeDisplay = row.timestamp ? 
-				new Date(row.timestamp).toLocaleTimeString('en-US', { 
-					hour12: false, 
-					hour: '2-digit', 
-					minute: '2-digit', 
-					second: '2-digit' 
-				}) : '';
 
-			// Determine what to show in Operation/Message column
+			// Extract status and operation display based on your format
+			let statusDisplay = '';
 			let operationDisplay = '';
+			let valueDisplay = '';
+			
 			if (row.rowType === 'testcase') {
+				statusDisplay = '';
 				operationDisplay = `<strong class="log-testcase">${this.escapeHtml(row.operation)}</strong>`;
+				valueDisplay = '';
 			} else if (row.rowType === 'operation') {
+				// Main operations get status and operation name
+				const actionMatch = row.operation.match(/(Succeeded|Failed) - (.+)/);
+				if (actionMatch) {
+					const status = actionMatch[1];
+					const name = actionMatch[2];
+					statusDisplay = `<span class="table-status table-status-${status.toLowerCase()}">${status}</span>`;
+					operationDisplay = `<span class="${levelClass}">${this.escapeHtml(name)}</span>`;
+				} else {
+					statusDisplay = '';
+					operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.operation)}</span>`;
+				}
+				valueDisplay = '';
+			} else if (row.rowType === 'sub-operation' || row.rowType === 'status') {
+				// Sub-operations have no status, operation name, and result in value
+				statusDisplay = '';
 				operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.operation)}</span>`;
+				valueDisplay = row.variableValue ? this.escapeHtml(row.variableValue) : '';
 			} else if (row.rowType === 'variable') {
-				operationDisplay = `<span class="${levelClass}">Buffer Variable Set</span>`;
+				statusDisplay = '';
+				operationDisplay = `<span class="${levelClass}">Variable: ${this.escapeHtml(row.variableName)}</span>`;
+				valueDisplay = row.variableValue ? 
+					(row.variableValue.length > 50 ? 
+						this.escapeHtml(row.variableValue.substring(0, 50)) + '...' : 
+						this.escapeHtml(row.variableValue)) : '';
 			} else {
-				operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.message)}</span>`;
+				// Messages and other content
+				statusDisplay = '';
+				operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.operation)}</span>`;
+				valueDisplay = '';
 			}
 
-			// Variable information
+			// Variable information (only for actual variables)
 			const variableDisplay = row.variableName ? this.escapeHtml(row.variableName) : '';
-			const valueDisplay = row.variableValue ? 
-				(row.variableValue.length > 50 ? 
+			
+			// For actual variables, override the valueDisplay if not already set
+			if (row.rowType === 'variable' && row.variableValue && !valueDisplay) {
+				valueDisplay = row.variableValue.length > 50 ? 
 					this.escapeHtml(row.variableValue.substring(0, 50)) + '...' : 
-					this.escapeHtml(row.variableValue)) : '';
+					this.escapeHtml(row.variableValue);
+			}
+			
 			const typeDisplay = row.variableType ? 
 				`<span class="type-badge ${this.getTypeClass(row.variableType)}">${this.getTypeLabel(row.variableType)}</span>` : '';
 
 			html += `
 				<tr class="table-row-${row.rowType}" data-level="${row.level}">
 					<td class="table-line-number">${row.lineNumber}</td>
-					<td class="table-timestamp">${timeDisplay}</td>
-					<td><span class="table-type ${typeClass}">${row.logLevel}</span></td>
-					<td><span class="table-status ${statusClass}">${row.status}</span></td>
+					<td class="table-status-column">${statusDisplay}</td>
 					<td class="table-operation ${levelClass}">${operationDisplay}</td>
 					<td class="table-variable">${variableDisplay}</td>
 					<td class="table-value">${valueDisplay}</td>
 					<td class="table-type-badge">${typeDisplay}</td>
-					<td class="table-duration">${row.duration}</td>
 				</tr>
 			`;
 		});
