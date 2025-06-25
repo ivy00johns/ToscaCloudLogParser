@@ -356,7 +356,7 @@ class UIManager {
 			<td class="variable-value-cell">${valueDisplay}</td>
 			<td><span class="type-badge ${typeClass}">${typeLabel}</span></td>
 			<td class="line-number">${variable.line}</td>
-			<td class="var-actions">${actionButtons}</td>
+			<td class="var-actions"><div class="var-actions">${actionButtons}</div></td>
 		</tr>`;
 
 		console.log(`🖥️ UI: Generated row HTML for ${variable.name}:`, rowHTML.length, 'chars');
