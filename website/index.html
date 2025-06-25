@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Tosca Log Parser</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			line-height: 1.6;
+		}
+
+		.container {
+			max-width: 1400px;
+			margin: 0 auto;
+			padding: 20px;
+		}
+
+		.header {
+			background: white;
+			padding: 15px 20px;
+			border-radius: 12px;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			margin-bottom: 15px;
+			display: flex;
+			align-items: center;
+		}
+
+		.logo {
+			width: 28px;
+			height: 28px;
+			margin-right: 10px;
+			border-radius: 4px;
+			background: #2c3e50;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: white;
+			font-weight: bold;
+			font-size: 12px;
+		}
+
+		.main-content {
+			background: white;
+			padding: 30px;
+			border-radius: 12px;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			display: flex;
+			flex-direction: column;
+			min-height: 80vh;
+		}
+
+		.input-section {
+			margin-bottom: 20px;
+		}
+
+		.input-tabs {
+			display: flex;
+			gap: 10px;
+			margin-bottom: 15px;
+		}
+
+		.input-btn {
+			flex: 1;
+			padding: 10px;
+			background: #6c757d;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+
+		.input-btn.active {
+			background: #667eea;
+		}
+
+		.input-btn:hover {
+			opacity: 0.9;
+		}
+
+		.input-mode {
+			display: none;
+		}
+
+		.input-mode.active {
+			display: block;
+		}
+
+		#logInput {
+			width: 100%;
+			height: 120px;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			font-family: monospace;
+			font-size: 12px;
+			resize: vertical;
+		}
+
+		.screen-mode {
+			padding: 20px;
+			background: #f8f9fa;
+			border-radius: 4px;
+			text-align: center;
+		}
+
+		.screen-mode p {
+			margin: 0 0 10px 0;
+			color: #666;
+		}
+
+		.file-input {
+			width: 100%;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+		}
+
+		.parse-btn {
+			width: 100%;
+			padding: 12px;
+			background: #11998e;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-weight: bold;
+			margin-bottom: 20px;
+			transition: background 0.2s;
+		}
+
+		.parse-btn:hover {
+			background: #0e8074;
+		}
+
+		.summary-section {
+			display: none;
+			margin-bottom: 20px;
+			padding: 15px;
+			background: #e8f5e8;
+			border-radius: 4px;
+		}
+
+		.summary-stats {
+			display: flex;
+			gap: 20px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.buffer-count {
+			font-weight: bold;
+			color: #28a745;
+		}
+
+		.filters-section {
+			display: none;
+			margin-bottom: 20px;
+			padding: 15px;
+			background: #f8f9fa;
+			border-radius: 4px;
+		}
+
+		.filters-content {
+			display: flex;
+			gap: 15px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.filter-label {
+			font-weight: 600;
+		}
+
+		.checkbox-label {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.search-input {
+			padding: 5px 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			width: 200px;
+			flex-shrink: 0;
+		}
+
+		.results-section {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+		}
+
+		.results-header {
+			display: none;
+			margin-bottom: 10px;
+			padding: 10px;
+			background: #e8f5e8;
+			border-radius: 4px;
+		}
+
+		.results-count {
+			font-weight: bold;
+			color: #28a745;
+		}
+
+		.action-buttons {
+			margin-left: 15px;
+		}
+
+		.action-btn {
+			padding: 5px 10px;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 12px;
+			margin-left: 5px;
+		}
+
+		.btn-expand {
+			background: #ffc107;
+			color: #333;
+		}
+
+		.btn-collapse {
+			background: #6c757d;
+			color: white;
+		}
+
+		.btn-copy {
+			background: #17a2b8;
+			color: white;
+		}
+
+		.btn-export {
+			background: #6f42c1;
+			color: white;
+		}
+
+		.results-container {
+			flex: 1;
+			overflow-y: auto;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+		}
+
+		.results-placeholder {
+			padding: 40px;
+			text-align: center;
+			color: #666;
+		}
+
+		.results-placeholder p:first-child {
+			margin: 0;
+			font-size: 18px;
+		}
+
+		.results-placeholder p:last-child {
+			margin: 10px 0 0 0;
+		}
+
+		.results-content {
+			display: none;
+			padding: 10px;
+		}
+
+		.group {
+			margin-bottom: 15px;
+			border: 1px solid #dee2e6;
+			border-radius: 5px;
+			background: white;
+		}
+
+		.group-header {
+			padding: 12px 15px;
+			background: #f8f9fa;
+			border-bottom: 1px solid #dee2e6;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.group-info {
+			display: flex;
+			align-items: center;
+			flex: 1;
+		}
+
+		.group-toggle {
+			margin-right: 10px;
+			font-weight: bold;
+		}
+
+		.group-title {
+			font-weight: 600;
+			color: #333;
+		}
+
+		.group-meta {
+			font-size: 11px;
+			color: #666;
+			margin-top: 2px;
+		}
+
+		.badge {
+			padding: 1px 4px;
+			border-radius: 2px;
+			margin-right: 5px;
+			color: white;
+			font-size: 10px;
+		}
+
+		.badge-buffers {
+			background: #28a745;
+		}
+
+		.badge-other {
+			background: #6c757d;
+		}
+
+		.group-copy-btn {
+			padding: 4px 8px;
+			background: #28a745;
+			color: white;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 11px;
+		}
+
+		.group-content {
+			display: none;
+		}
+
+		.variable-table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+
+		.variable-table th {
+			padding: 8px 10px;
+			border-bottom: 1px solid #dee2e6;
+			text-align: left;
+			font-weight: 600;
+			background: #f8f9fa;
+		}
+
+		.variable-table td {
+			padding: 8px 10px;
+			border-bottom: 1px solid #dee2e6;
+			vertical-align: top;
+			line-height: 1.4;
+		}
+
+		.variable-table tr:nth-child(even) {
+			background: #f8f9fa;
+		}
+
+		.variable-name {
+			font-weight: 500;
+			min-width: 120px;
+		}
+
+		.variable-value {
+			font-family: monospace;
+			font-size: 11px;
+			word-break: break-all;
+		}
+
+		.type-badge {
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 9px;
+			color: white;
+		}
+
+		.type-buffer {
+			background: #28a745;
+		}
+
+		.type-id {
+			background: #17a2b8;
+		}
+
+		.type-url {
+			background: #fd7e14;
+		}
+
+		.line-number {
+			color: #666;
+			font-size: 11px;
+		}
+
+		.var-actions {
+			display: flex;
+			gap: 3px;
+			align-items: flex-start;
+			min-height: 28px;
+			padding: 2px 0;
+			width: 80px;
+		}
+
+		.var-btn {
+			padding: 4px 7px;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 10px;
+			color: white;
+			min-width: 22px;
+			height: 24px;
+			text-align: center;
+			vertical-align: top;
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			line-height: 1;
+		}
+
+		.var-btn-copy {
+			background: #28a745;
+		}
+
+		.var-btn-view {
+			background: #17a2b8;
+		}
+
+		.footer {
+			display: flex;
+			gap: 10px;
+			margin-top: 20px;
+		}
+
+		.btn-close {
+			padding: 10px 15px;
+			background: #6c757d;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+
+		.btn-clear {
+			padding: 10px 15px;
+			background: #dc3545;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			margin-left: auto;
+		}
+
+		.debug-section {
+			margin-top: 20px;
+			padding: 15px;
+			background: #fff3cd;
+			border: 1px solid #ffeaa7;
+			border-radius: 4px;
+			display: none;
+		}
+
+		.debug-toggle {
+			background: #ffc107;
+			color: #333;
+			border: none;
+			padding: 5px 10px;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 12px;
+		}
+
+		.debug-content {
+			margin-top: 10px;
+			font-family: monospace;
+			font-size: 11px;
+			white-space: pre-wrap;
+			max-height: 200px;
+			overflow-y: auto;
+			background: white;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 3px;
+		}
+
+		/* Log View Styles */
+		.log-view-content {
+			padding: 10px;
+			font-family: 'Courier New', monospace;
+			font-size: 12px;
+			line-height: 1.4;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			border-radius: 4px;
+			overflow-y: auto;
+			overflow-x: auto;
+			white-space: pre;
+		}
+
+		.log-view-content.word-wrap {
+			white-space: pre-wrap;
+			overflow-x: hidden;
+		}
+
+		.log-line {
+			margin: 0;
+			padding: 0;
+			line-height: 1.4;
+		}
+
+		.log-line:hover {
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		/* Log Level Styles */
+		.log-timestamp {
+			color: #569cd6;
+			font-weight: normal;
+		}
+
+		.log-level-inf {
+			color: #4ec9b0;
+		}
+
+		.log-level-err {
+			color: #f44747;
+		}
+
+		.log-level-wrn {
+			color: #ffcc02;
+		}
+
+		.log-component {
+			color: #9cdcfe;
+		}
+
+		.log-status-succeeded {
+			color: #4ec9b0;
+			font-weight: bold;
+		}
+
+		.log-status-failed {
+			color: #f44747;
+			font-weight: bold;
+		}
+
+		.log-test-case {
+			color: #c586c0;
+			font-weight: bold;
+		}
+
+		.log-operation {
+			color: #dcdcaa;
+		}
+
+		.log-buffer {
+			color: #ce9178;
+			font-weight: bold;
+		}
+
+		.log-duration {
+			color: #808080;
+			font-style: italic;
+		}
+
+		.log-message {
+			color: #d4d4d4;
+		}
+
+		.log-url {
+			color: #4fc1ff;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		.log-url:hover {
+			background: rgba(79, 193, 255, 0.2);
+		}
+
+		.log-guid {
+			color: #b5cea8;
+			font-family: monospace;
+			background: rgba(181, 206, 168, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		/* Table View Styles */
+		.table-view-content {
+			padding: 10px;
+			background: white;
+			border-radius: 4px;
+			overflow-y: auto;
+			overflow-x: auto;
+		}
+
+		.log-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-family: 'Courier New', monospace;
+			font-size: 12px;
+		}
+
+		.log-table th {
+			background: #f8f9fa;
+			border: 1px solid #dee2e6;
+			padding: 8px;
+			text-align: left;
+			font-weight: 600;
+			position: sticky;
+			top: 0;
+			z-index: 10;
+		}
+
+		.log-table td {
+			border: 1px solid #dee2e6;
+			padding: 6px 8px;
+			vertical-align: top;
+		}
+
+		.log-table tr:nth-child(even) {
+			background: #f8f9fa;
+		}
+
+		.log-table tr:hover {
+			background: #e8f4fd;
+		}
+
+		.level-indicator {
+			display: inline-block;
+			width: 20px;
+			text-align: center;
+			font-weight: bold;
+			color: #666;
+		}
+
+		.level-0 {
+			padding-left: 0px;
+		}
+
+		.level-1 {
+			padding-left: 20px;
+		}
+
+		.level-2 {
+			padding-left: 40px;
+		}
+
+		.level-3 {
+			padding-left: 60px;
+		}
+
+		.level-4 {
+			padding-left: 80px;
+		}
+
+		.table-timestamp {
+			color: #569cd6;
+			font-size: 11px;
+		}
+
+		.table-type {
+			font-weight: bold;
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-type-inf {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.table-type-err {
+			background: #f8d7da;
+			color: #721c24;
+		}
+
+		.table-type-wrn {
+			background: #fff3cd;
+			color: #856404;
+		}
+
+		.table-component {
+			background: #e2e3e5;
+			color: #383d41;
+			padding: 1px 3px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-status {
+			font-weight: bold;
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-status-succeeded {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.table-status-failed {
+			background: #f8d7da;
+			color: #721c24;
+		}
+
+		.table-duration {
+			color: #6c757d;
+			font-style: italic;
+			font-size: 11px;
+		}
+
+		.table-message {
+			font-family: inherit;
+			word-break: break-word;
+		}
+
+		/* NEW: Enhanced type badges */
+		.type-json {
+			background: #e67e22;
+		}
+
+		.type-url {
+			background: #fd7e14;
+		}
+
+		.type-id {
+			background: #17a2b8;
+		}
+
+		.type-timestamp {
+			background: #6f42c1;
+		}
+
+		.type-token {
+			background: #dc3545;
+		}
+
+		.badge-json {
+			background: #e67e22;
+		}
+
+		.badge-urls {
+			background: #fd7e14;
+		}
+
+		.badge-tokens {
+			background: #dc3545;
+		}
+
+		.timestamp {
+			color: #666;
+			font-size: 11px;
+			margin-left: 10px;
+		}
+
+		/* NEW: JSON container styles */
+		.json-container {
+			max-width: 100%;
+		}
+
+		.json-preview {
+			font-family: monospace;
+			font-size: 11px;
+			color: #666;
+			background: #f8f9fa;
+			padding: 5px;
+			border-radius: 3px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.json-full {
+			max-width: 100%;
+			overflow: auto;
+		}
+
+		.json-formatted {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			padding: 15px;
+			border-radius: 4px;
+			margin: 0;
+			overflow: auto;
+			max-height: 300px;
+		}
+
+		/* NEW: JSON syntax highlighting */
+		.json-key {
+			color: #9cdcfe;
+		}
+
+		.json-colon {
+			color: #d4d4d4;
+		}
+
+		.json-string {
+			color: #ce9178;
+		}
+
+		.json-number {
+			color: #b5cea8;
+		}
+
+		.json-boolean {
+			color: #569cd6;
+		}
+
+		.json-null {
+			color: #569cd6;
+		}
+
+		/* NEW: Enhanced variable table */
+		.variable-value-cell {
+			max-width: 400px;
+			word-break: break-word;
+			vertical-align: top;
+			line-height: 1.4;
+		}
+
+		.url-link {
+			color: #4fc1ff;
+			text-decoration: underline;
+		}
+
+		.url-link:hover {
+			color: #007bff;
+		}
+
+		/* NEW: Enhanced action buttons */
+		.var-btn-postman {
+			background: #ff6b35;
+		}
+
+		.var-btn-postman:hover {
+			background: #e55a2b;
+		}
+
+		/* NEW: View buttons styling */
+		.view-btn {
+			padding: 8px 15px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 12px;
+			margin-right: 5px;
+			transition: all 0.2s;
+		}
+
+		#variablesViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#logsViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#tableViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#wordWrapBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		.view-btn.active {
+			transform: translateY(-1px);
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		}
+
+		#variablesViewBtn.active {
+			background: #17a2b8;
+		}
+
+		#logsViewBtn.active {
+			background: #28a745;
+		}
+
+		#tableViewBtn.active {
+			background: #6f42c1;
+		}
+
+		/* NEW: Enhanced log highlighting */
+		.log-timestamp {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-level-INF {
+			color: #4fc1ff;
+		}
+
+		.log-level-ERR {
+			color: #f14c4c;
+			font-weight: bold;
+		}
+
+		.log-level-WAR {
+			color: #ffab00;
+		}
+
+		.log-level-DEB {
+			color: #9c9c9c;
+		}
+
+		.log-testcase {
+			color: #c586c0;
+			font-weight: bold;
+		}
+
+		.log-buffer-name {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-buffer-value {
+			color: #ce9178;
+		}
+
+		.log-url {
+			color: #4fc1ff;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		.log-url:hover {
+			color: #007bff;
+		}
+
+		.log-status-Succeeded {
+			color: #4fc1ff;
+			font-weight: bold;
+		}
+
+		.log-status-Failed {
+			color: #f14c4c;
+			font-weight: bold;
+		}
+
+		/* NEW: Request/Response operation highlighting */
+		.log-request-operation {
+			color: #007bff;
+			font-weight: bold;
+			background: rgba(0, 123, 255, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-operation {
+			color: #28a745;
+			font-weight: bold;
+			background: rgba(40, 167, 69, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-time {
+			color: #17a2b8;
+			font-weight: bold;
+			background: rgba(23, 162, 184, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-status-code {
+			color: #6f42c1;
+			font-weight: bold;
+			background: rgba(111, 66, 193, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		/* NEW: JSON highlighting in logs */
+		.log-json-block {
+			background: rgba(233, 149, 34, 0.15);
+			padding: 2px 4px;
+			border-radius: 3px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.log-json-key {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-json-colon {
+			color: #d4d4d4;
+		}
+
+		.log-json-string {
+			color: #ce9178;
+		}
+
+		.log-json-number {
+			color: #b5cea8;
+			font-weight: 500;
+		}
+
+		.log-json-boolean {
+			color: #569cd6;
+			font-weight: 500;
+		}
+
+		.log-json-bracket {
+			color: #ffd700;
+			font-weight: bold;
+		}
+
+		/* NEW: Toast notification styles */
+		.toast {
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			padding: 12px 20px;
+			border-radius: 4px;
+			z-index: 10000;
+			font-weight: 500;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			transform: translateX(100%);
+			transition: transform 0.3s ease;
+		}
+
+		.toast-success {
+			background: #28a745;
+			color: white;
+		}
+
+		.toast-error {
+			background: #dc3545;
+			color: white;
+		}
+
+		.toast-info {
+			background: #17a2b8;
+			color: white;
+		}
+
+		/* NEW: Value modal styles */
+		.value-modal {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.8);
+			z-index: 10000;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-content {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			max-width: 80%;
+			max-height: 80%;
+			overflow: auto;
+			position: relative;
+		}
+
+		/* Responsive adjustments */
+		@media (max-width: 768px) {
+			.json-formatted {
+				font-size: 10px;
+				padding: 10px;
+			}
+
+			.variable-value-cell {
+				max-width: 200px;
+			}
+
+			.var-actions {
+				flex-direction: column;
+				gap: 1px;
+			}
+
+			.var-btn {
+				font-size: 8px;
+				padding: 1px 3px;
+			}
+		}
+
+		/* Log line numbering */
+		.log-line {
+			position: relative;
+			padding-left: 0;
+		}
+
+		.log-line[data-line]:before {
+			content: attr(data-line);
+			position: absolute;
+			left: -60px;
+			width: 50px;
+			text-align: right;
+			color: #666;
+			font-size: 10px;
+			padding-right: 10px;
+			border-right: 1px solid #333;
+		}
+
+		/* Enhanced filters section */
+		.filters-content {
+			display: flex;
+			gap: 15px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.filter-label {
+			font-weight: 600;
+			color: #333;
+			margin-right: 5px;
+		}
+
+		/* Table view enhancements */
+		.table-view {
+			padding: 20px;
+			text-align: center;
+			color: #666;
+			font-style: italic;
+		}
+
+		/* NEW: Token value styling */
+		.token-value {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #fff3cd;
+			padding: 2px 4px;
+			border-radius: 3px;
+			border: 1px solid #ffeaa7;
+			cursor: pointer;
+		}
+
+		.token-value:hover {
+			background: #fff1b3;
+		}
+
+		/* NEW: Full JSON display styling */
+		.json-container-full {
+			max-width: 100%;
+			margin: 5px 0;
+		}
+
+		.json-context {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 8px;
+			padding: 4px 8px;
+			background: #f8f9fa;
+			border-radius: 4px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.context-operation {
+			font-weight: 600;
+			color: #333;
+			font-size: 12px;
+		}
+
+		.context-type {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 10px;
+			font-weight: bold;
+			text-transform: uppercase;
+		}
+
+		.context-request {
+			background: #007bff;
+			color: white;
+		}
+
+		.context-response {
+			background: #28a745;
+			color: white;
+		}
+
+		.context-status {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 10px;
+			font-weight: bold;
+			background: #17a2b8;
+			color: white;
+		}
+
+		.json-full-display {
+			max-width: 100%;
+			overflow: auto;
+		}
+
+		.json-formatted-full {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			padding: 12px;
+			border-radius: 4px;
+			margin: 0;
+			overflow: auto;
+			max-height: none;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		/* JSON row styling */
+		.json-row {
+			background: #f8f9fa !important;
+		}
+
+		.json-row:nth-child(even) {
+			background: #f1f3f4 !important;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="header">
+			<div class="logo">TL</div>
+			<h1>Tosca Log Parser v2</h1>
+		</div>
+
+		<div class="main-content">
+			<!-- Input Section -->
+			<div class="input-section">
+				<div class="input-tabs">
+					<button id="pasteBtn" class="input-btn active">📝 Paste Logs</button>
+					<button id="fileBtn" class="input-btn">📁 Load File</button>
+					<button id="debugBtn" class="debug-toggle">🐛 Debug</button>
+				</div>
+
+				<div id="pasteMode" class="input-mode active">
+					<textarea id="logInput" placeholder="Paste your Tosca logs here..."></textarea>
+				</div>
+
+				<div id="fileMode" class="input-mode">
+					<input type="file" id="fileInput" accept=".json,.txt,.log" class="file-input">
+				</div>
+			</div>
+
+			<button id="parseBtn" class="parse-btn">🔄 Parse Logs</button>
+
+			<!-- Combined Header -->
+			<div id="combinedHeader" class="filters-section" style="display: none;">
+				<div class="filters-content">
+					<input type="text" id="searchFilter" placeholder="Search..." class="search-input"
+						style="width: 200px;">
+					<span class="action-buttons" style="margin-left: 15px;">
+						<button id="variablesViewBtn" class="view-btn active">📊 Variables</button>
+						<button id="logsViewBtn" class="view-btn">📋 Logs</button>
+						<button id="tableViewBtn" class="view-btn">📋 Table</button>
+						<button id="wordWrapBtn" class="view-btn" style="display: none;">📄 Wrap</button>
+						<button id="copyAllBtn" class="action-btn btn-copy">📋 Copy All</button>
+						<button id="exportBtn" class="action-btn btn-export">💾 Export JSON</button>
+					</span>
+					<span id="combinedCount" class="buffer-count" style="margin-left: auto;"></span>
+				</div>
+			</div>
+
+			<!-- Results Section -->
+			<div class="results-section">
+				<div class="results-container">
+					<div id="resultsPlaceholder" class="results-placeholder">
+						<p>📊</p>
+						<p>Parse logs to see extracted variables here</p>
+					</div>
+					<div id="resultsContent" class="results-content"></div>
+					<div id="logViewContent" class="log-view-content" style="display: none;"></div>
+					<div id="tableViewContent" class="table-view-content" style="display: none;"></div>
+				</div>
+			</div>
+
+			<!-- Debug Section -->
+			<div id="debugSection" class="debug-section">
+				<div id="debugContent" class="debug-content"></div>
+			</div>
+
+			<!-- Footer -->
+			<div class="footer">
+				<button id="clearBtn" class="btn-clear">🗑️ Clear Results</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="parser.js"></script>
+</body>
+
+</html>
