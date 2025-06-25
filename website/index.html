@@ -1141,6 +1141,112 @@
 			font-style: italic;
 		}
 
+		/* Enhanced table styles for hierarchy */
+		.table-line-number {
+			width: 60px;
+			text-align: right;
+			color: #666;
+			font-size: 11px;
+		}
+
+		.table-operation {
+			max-width: 300px;
+			word-break: break-word;
+		}
+
+		.table-variable {
+			max-width: 150px;
+			word-break: break-word;
+			font-weight: 500;
+		}
+
+		.table-value {
+			max-width: 200px;
+			word-break: break-word;
+			font-family: monospace;
+			font-size: 11px;
+		}
+
+		.table-type-badge {
+			text-align: center;
+		}
+
+		/* Row type styling */
+		.table-row-testcase {
+			background: #e8f5e8 !important;
+			font-weight: bold;
+		}
+
+		.table-row-testcase:hover {
+			background: #d4edda !important;
+		}
+
+		.table-row-operation {
+			background: #f8f9fa;
+		}
+
+		.table-row-operation:hover {
+			background: #e2e6ea;
+		}
+
+		.table-row-variable {
+			background: #fff3cd;
+		}
+
+		.table-row-variable:hover {
+			background: #ffeaa7;
+		}
+
+		.table-row-message {
+			background: white;
+		}
+
+		/* Indentation for hierarchy - using text indentation */
+		.level-0 .table-operation {
+			padding-left: 8px;
+		}
+
+		.level-1 .table-operation {
+			padding-left: 24px;
+		}
+
+		.level-2 .table-operation {
+			padding-left: 40px;
+		}
+
+		.level-3 .table-operation {
+			padding-left: 56px;
+		}
+
+		.level-4 .table-operation {
+			padding-left: 72px;
+		}
+
+		/* Add visual hierarchy indicators */
+		.level-1 .table-operation::before {
+			content: "├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-2 .table-operation::before {
+			content: "│  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-3 .table-operation::before {
+			content: "│  │  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-4 .table-operation::before {
+			content: "│  │  │  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
 		/* NEW: Token value styling */
 		.token-value {
 			font-family: 'Courier New', monospace;

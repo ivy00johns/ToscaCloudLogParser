@@ -972,18 +972,37 @@ class ToscaLogParser {
 	showVariablesView() {
 		this.currentView = 'variables';
 		this.updateViewButtons();
+		
+		// Show variables view, hide others
+		document.getElementById('resultsContent').style.display = 'block';
+		document.getElementById('logViewContent').style.display = 'none';
+		document.getElementById('tableViewContent').style.display = 'none';
+		
 		this.applyFilters();
 	}
 
 	showLogsView() {
 		this.currentView = 'logs';
 		this.updateViewButtons();
+		
+		// Show logs view, hide others
+		document.getElementById('resultsContent').style.display = 'none';
+		document.getElementById('logViewContent').style.display = 'block';
+		document.getElementById('tableViewContent').style.display = 'none';
+		
+		// Show word wrap button for logs view
+		document.getElementById('wordWrapBtn').style.display = 'inline-block';
+		
 		this.displayColoredLogs();
 	}
 
 	showTableView() {
 		this.currentView = 'table';
 		this.updateViewButtons();
+		
+		// Hide word wrap button for table view
+		document.getElementById('wordWrapBtn').style.display = 'none';
+		
 		this.displayTableView();
 	}
 
@@ -1004,15 +1023,33 @@ class ToscaLogParser {
 	}
 
 	displayColoredLogs() {
-		const container = document.getElementById('resultsContent');
+		const container = document.getElementById('logViewContent');
+		
+		if (!this.rawLogText) {
+			container.innerHTML = '<div class="log-view-content">No logs to display</div>';
+			return;
+		}
+		
 		const logLines = this.rawLogText.split('\n');
+		
+		// Apply search filter if active
+		const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+		const filteredLines = searchTerm ? 
+			logLines.map((line, index) => ({ line, index }))
+				.filter(item => item.line.toLowerCase().includes(searchTerm)) : 
+			logLines.map((line, index) => ({ line, index }));
 
-		let html = '<div class="log-view-content">';
-		logLines.forEach((line, index) => {
-			const highlightedLine = this.addColorHighlighting(line);
-			html += `<div class="log-line" data-line="${index + 1}">${highlightedLine}</div>`;
+		container.className = 'log-view-content';
+		if (this.wordWrapEnabled) {
+			container.classList.add('word-wrap');
+		}
+
+		let html = '';
+		filteredLines.forEach(item => {
+			const highlightedLine = this.addColorHighlighting(item.line);
+			const lineNumber = typeof item.index !== 'undefined' ? item.index + 1 : item;
+			html += `<div class="log-line" data-line="${lineNumber}">${highlightedLine}</div>`;
 		});
-		html += '</div>';
 
 		container.innerHTML = html;
 	}
@@ -1116,10 +1153,270 @@ class ToscaLogParser {
 	}
 
 	displayTableView() {
-		// Implementation for table view would go here
-		// This is a simplified version
 		const container = document.getElementById('resultsContent');
-		container.innerHTML = '<div class="table-view">Table view implementation would go here</div>';
+		const tableContainer = document.getElementById('tableViewContent');
+		const resultsContent = document.getElementById('resultsContent');
+		const logViewContent = document.getElementById('logViewContent');
+
+		// Hide other views and show table view
+		resultsContent.style.display = 'none';
+		logViewContent.style.display = 'none';
+		tableContainer.style.display = 'block';
+
+		if (!this.rawLogText) {
+			tableContainer.innerHTML = '<div class="table-view">No logs to display in table format</div>';
+			return;
+		}
+
+		// Parse raw logs into structured table data
+		const tableData = this.parseLogsForTable(this.rawLogText);
+		
+		// Apply search filter if active
+		const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+		const filteredTableData = searchTerm ? 
+			tableData.filter(row => 
+				row.message.toLowerCase().includes(searchTerm) ||
+				row.operation.toLowerCase().includes(searchTerm) ||
+				(row.testCase && row.testCase.toLowerCase().includes(searchTerm)) ||
+				row.level.toString().includes(searchTerm)
+			) : tableData;
+
+		// Generate table HTML
+		const tableHTML = this.generateTableHTML(filteredTableData);
+		tableContainer.innerHTML = tableHTML;
+	}
+
+	parseLogsForTable(logText) {
+		const lines = logText.split('\n');
+		const tableData = [];
+		let lineNumber = 0;
+		const contextStack = [];
+		let currentTestCase = '';
+
+		lines.forEach(line => {
+			lineNumber++;
+			if (!line.trim()) return;
+
+			const indentLevel = this.getIndentLevel(line);
+			const trimmedLine = line.trim();
+			
+			// Skip lines that are just metadata or noise
+			if (trimmedLine.includes('[DURATION:') ||
+				trimmedLine.match(/^\[INF\]\[TBox\]\s*$/) ||
+				trimmedLine.includes('has been performed successfully')) {
+				return;
+			}
+
+			// Update context stack based on indentation
+			this.updateTableContextStack(contextStack, indentLevel, trimmedLine);
+
+			// Extract key information
+			const timestamp = this.extractTimestamp(line);
+			const logLevel = this.extractLogLevel(trimmedLine);
+			const status = this.extractStatus(trimmedLine);
+			const operation = this.extractOperation(trimmedLine);
+			const message = this.extractMessage(trimmedLine);
+			const duration = this.extractDuration(trimmedLine);
+
+			// Track current test case
+			const testCaseMatch = trimmedLine.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+			if (testCaseMatch) {
+				currentTestCase = testCaseMatch[1];
+			}
+
+			// Determine row type
+			let rowType = 'message';
+			if (trimmedLine.includes('Starting TestCase')) {
+				rowType = 'testcase';
+			} else if (trimmedLine.includes('[Succeeded]') || trimmedLine.includes('[Failed]')) {
+				rowType = 'operation';
+			} else if (trimmedLine.includes('Buffer with name')) {
+				rowType = 'variable';
+			} else if (trimmedLine.includes('Message:')) {
+				rowType = 'message';
+			}
+
+			// Extract buffer variable if present
+			let variableName = '';
+			let variableValue = '';
+			let variableType = '';
+			const bufferMatch = trimmedLine.match(/Buffer with name[:\s]*['"]([^'"]*)['"]\s*has been set to value[:\s]*['"]([^'"]*)['"]/i);
+			if (bufferMatch) {
+				variableName = bufferMatch[1];
+				variableValue = bufferMatch[2];
+				variableType = this.detectVariableType(variableName, variableValue);
+			}
+
+			tableData.push({
+				lineNumber,
+				timestamp,
+				level: indentLevel / 4, // Convert spaces to level (assuming 4 spaces per level)
+				logLevel,
+				status,
+				operation,
+				message,
+				duration,
+				testCase: currentTestCase,
+				rowType,
+				variableName,
+				variableValue,
+				variableType,
+				originalLine: line,
+				context: contextStack.length > 0 ? contextStack[contextStack.length - 1].name : ''
+			});
+		});
+
+		return tableData;
+	}
+
+	updateTableContextStack(stack, indentLevel, line) {
+		// Remove contexts at deeper or equal levels
+		while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indentLevel) {
+			stack.pop();
+		}
+
+		// Add new context if this is a meaningful operation
+		const testCaseMatch = line.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+		const operationMatch = line.match(/\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+
+		if (testCaseMatch) {
+			stack.push({
+				name: testCaseMatch[1],
+				indentLevel: indentLevel,
+				type: 'TestCase'
+			});
+		} else if (operationMatch && operationMatch[2] !== 'Operation') {
+			stack.push({
+				name: operationMatch[2],
+				indentLevel: indentLevel,
+				type: 'Operation'
+			});
+		}
+	}
+
+	extractLogLevel(line) {
+		const match = line.match(/\[(INF|ERR|WAR|DEB)\]/);
+		return match ? match[1] : '';
+	}
+
+	extractStatus(line) {
+		const match = line.match(/\[(Succeeded|Failed)\]/);
+		return match ? match[1] : '';
+	}
+
+	extractOperation(line) {
+		const operationMatch = line.match(/\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+		if (operationMatch) {
+			return operationMatch[2];
+		}
+		
+		const testCaseMatch = line.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+		if (testCaseMatch) {
+			return testCaseMatch[1];
+		}
+		
+		return '';
+	}
+
+	extractMessage(line) {
+		// Remove timestamp and log level prefix
+		let cleaned = line.replace(/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^[]*\[[^\]]*\]\[[^\]]*\]\s*/, '');
+		
+		// For message lines, extract the actual message
+		const messageMatch = cleaned.match(/Message:\s*(.+)/);
+		if (messageMatch) {
+			return messageMatch[1];
+		}
+		
+		return cleaned.trim();
+	}
+
+	extractDuration(line) {
+		const match = line.match(/\[DURATION:\s*([^\]]+)\]/);
+		return match ? match[1] : '';
+	}
+
+	generateTableHTML(tableData) {
+		if (tableData.length === 0) {
+			return '<div class="table-view">No matching log entries found</div>';
+		}
+
+		let html = `
+			<div class="table-view-content">
+				<table class="log-table">
+					<thead>
+						<tr>
+							<th>Line</th>
+							<th>Time</th>
+							<th>Level</th>
+							<th>Status</th>
+							<th>Operation/Message</th>
+							<th>Variable</th>
+							<th>Value</th>
+							<th>Type</th>
+							<th>Duration</th>
+						</tr>
+					</thead>
+					<tbody>
+		`;
+
+		tableData.forEach(row => {
+			const levelClass = `level-${Math.min(row.level, 4)}`;
+			const statusClass = row.status ? `table-status-${row.status.toLowerCase()}` : '';
+			const typeClass = row.logLevel ? `table-type-${row.logLevel.toLowerCase()}` : '';
+			
+			// Format timestamp for display
+			const timeDisplay = row.timestamp ? 
+				new Date(row.timestamp).toLocaleTimeString('en-US', { 
+					hour12: false, 
+					hour: '2-digit', 
+					minute: '2-digit', 
+					second: '2-digit' 
+				}) : '';
+
+			// Determine what to show in Operation/Message column
+			let operationDisplay = '';
+			if (row.rowType === 'testcase') {
+				operationDisplay = `<strong class="log-testcase">${this.escapeHtml(row.operation)}</strong>`;
+			} else if (row.rowType === 'operation') {
+				operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.operation)}</span>`;
+			} else if (row.rowType === 'variable') {
+				operationDisplay = `<span class="${levelClass}">Buffer Variable Set</span>`;
+			} else {
+				operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.message)}</span>`;
+			}
+
+			// Variable information
+			const variableDisplay = row.variableName ? this.escapeHtml(row.variableName) : '';
+			const valueDisplay = row.variableValue ? 
+				(row.variableValue.length > 50 ? 
+					this.escapeHtml(row.variableValue.substring(0, 50)) + '...' : 
+					this.escapeHtml(row.variableValue)) : '';
+			const typeDisplay = row.variableType ? 
+				`<span class="type-badge ${this.getTypeClass(row.variableType)}">${this.getTypeLabel(row.variableType)}</span>` : '';
+
+			html += `
+				<tr class="table-row-${row.rowType}" data-level="${row.level}">
+					<td class="table-line-number">${row.lineNumber}</td>
+					<td class="table-timestamp">${timeDisplay}</td>
+					<td><span class="table-type ${typeClass}">${row.logLevel}</span></td>
+					<td><span class="table-status ${statusClass}">${row.status}</span></td>
+					<td class="table-operation ${levelClass}">${operationDisplay}</td>
+					<td class="table-variable">${variableDisplay}</td>
+					<td class="table-value">${valueDisplay}</td>
+					<td class="table-type-badge">${typeDisplay}</td>
+					<td class="table-duration">${row.duration}</td>
+				</tr>
+			`;
+		});
+
+		html += `
+					</tbody>
+				</table>
+			</div>
+		`;
+
+		return html;
 	}
 
 	copyGroupVariables(groupIndex) {
