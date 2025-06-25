@@ -287,7 +287,7 @@
 			padding: 12px 15px;
 			background: #f8f9fa;
 			border-bottom: 1px solid #dee2e6;
-			cursor: pointer;
+			cursor: default;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
@@ -342,7 +342,7 @@
 		}
 
 		.group-content {
-			display: none;
+			display: block;
 		}
 
 		.variable-table {
@@ -1320,6 +1320,39 @@
 			background: #fff1b3;
 		}
 
+		/* Ensure all content is visible - debug styles */
+		.group {
+			display: block !important;
+			visibility: visible !important;
+		}
+
+		.group-content {
+			display: block !important;
+			visibility: visible !important;
+		}
+
+		.variable-table {
+			display: table !important;
+			visibility: visible !important;
+		}
+
+		.variable-table tbody,
+		.variable-table thead {
+			display: table-row-group !important;
+			visibility: visible !important;
+		}
+
+		.variable-table tr {
+			display: table-row !important;
+			visibility: visible !important;
+		}
+
+		.variable-table td,
+		.variable-table th {
+			display: table-cell !important;
+			visibility: visible !important;
+		}
+
 		/* NEW: Full JSON display styling */
 		.json-container-full {
 			max-width: 100%;
@@ -1469,7 +1502,7 @@
 		</div>
 	</div>
 
-	<script src="parser.js"></script>
+	<script type="module" src="js/ToscaLogParserApp.js"></script>
 </body>
 
 </html>

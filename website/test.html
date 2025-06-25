@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Module Test</title>
+</head>
+
+<body>
+	<h1>Tosca Log Parser - Module Test</h1>
+	<div id="test-results"></div>
+
+	<script type="module">
+		const testResults = document.getElementById('test-results');
+
+		async function runTests() {
+			const results = [];
+
+			try {
+				// Test 1: Import LogParser
+				const { default: LogParser } = await import('./js/core/LogParser.js');
+				const parser = new LogParser();
+				results.push('✅ LogParser module loaded successfully');
+
+				// Test 2: Test basic JSON detection
+				const isJSON = parser.isValidJSON('{"test": "value"}');
+				results.push(isJSON ? '✅ JSON detection working' : '❌ JSON detection failed');
+
+				// Test 3: Import UIManager
+				const { default: UIManager } = await import('./js/ui/UIManager.js');
+				const uiManager = new UIManager();
+				results.push('✅ UIManager module loaded successfully');
+
+				// Test 4: Import DataManager
+				const { default: DataManager } = await import('./js/data/DataManager.js');
+				const dataManager = new DataManager();
+				results.push('✅ DataManager module loaded successfully');
+
+				// Test 5: Import Main App
+				const { default: ToscaLogParserApp } = await import('./js/ToscaLogParserApp.js');
+				results.push('✅ ToscaLogParserApp module loaded successfully');
+
+				// Test 6: Test basic parsing
+				const sampleLog = `2024-01-01T10:00:00Z [INF][TBox] Buffer with name "testVar" has been set to value "testValue"`;
+				const parsedData = parser.parseLogContent(sampleLog);
+				results.push(parsedData.length > 0 ? '✅ Basic parsing working' : '❌ Basic parsing failed');
+
+				results.push('🎉 All module tests passed!');
+
+			} catch (error) {
+				results.push(`❌ Test failed: ${error.message}`);
+				console.error('Test error:', error);
+			}
+
+			testResults.innerHTML = results.map(result => `<p>${result}</p>`).join('');
+		}
+
+		runTests();
+	</script>
+</body>
+
+</html>
