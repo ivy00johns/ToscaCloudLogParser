@@ -287,6 +287,136 @@ class DataManager {
 		return null;
 	}
 
+	// Create hierarchical grouping for logs and table views
+	groupLogsByHierarchy(rawLogText) {
+		const lines = rawLogText.split('\n');
+		const groups = [];
+		let currentGroup = null;
+		let contextStack = [];
+		let lineNumber = 0;
+
+		lines.forEach(line => {
+			lineNumber++;
+			if (!line.trim()) return;
+
+			const logInfo = this.parseLogLine(line, lineNumber);
+			if (!logInfo) return;
+
+			// Handle test case start
+			if (logInfo.isTestCaseStart) {
+				// Create new test case group
+				currentGroup = {
+					id: `testcase_${lineNumber}`,
+					type: 'testcase',
+					name: logInfo.testCaseName,
+					timestamp: logInfo.timestamp,
+					lines: [logInfo],
+					subGroups: [],
+					expanded: false,
+					level: 0
+				};
+				groups.push(currentGroup);
+				contextStack = [currentGroup];
+			}
+			// Handle operations and sub-operations
+			else if (logInfo.isOperation) {
+				const level = logInfo.indentLevel;
+				
+				// Find appropriate parent group
+				while (contextStack.length > level + 1) {
+					contextStack.pop();
+				}
+
+				const operationGroup = {
+					id: `operation_${lineNumber}`,
+					type: 'operation',
+					name: logInfo.operationName,
+					timestamp: logInfo.timestamp,
+					lines: [logInfo],
+					subGroups: [],
+					expanded: false,
+					level: level
+				};
+
+				if (contextStack.length > 0) {
+					contextStack[contextStack.length - 1].subGroups.push(operationGroup);
+				} else if (currentGroup) {
+					currentGroup.subGroups.push(operationGroup);
+				}
+				
+				contextStack.push(operationGroup);
+			}
+			// Handle regular log lines
+			else {
+				if (contextStack.length > 0) {
+					contextStack[contextStack.length - 1].lines.push(logInfo);
+				} else if (currentGroup) {
+					currentGroup.lines.push(logInfo);
+				}
+			}
+		});
+
+		return groups;
+	}
+
+	// Parse individual log line to extract structure information
+	parseLogLine(line, lineNumber) {
+		// Extract timestamp
+		const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/);
+		const timestamp = timestampMatch ? timestampMatch[1] : '';
+
+		// Extract log level
+		const levelMatch = line.match(/\[(INF|ERR|WAR|DEB)\]/);
+		const level = levelMatch ? levelMatch[1] : '';
+
+		// Check for test case start
+		const testCaseMatch = line.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+		if (testCaseMatch) {
+			return {
+				lineNumber,
+				timestamp,
+				level,
+				originalLine: line,
+				isTestCaseStart: true,
+				testCaseName: testCaseMatch[1],
+				indentLevel: 0
+			};
+		}
+
+		// Check for operations (detect by indentation and patterns)
+		const indentMatch = line.match(/^[^[]*\[INF\]\[TBox\](\s+)/);
+		let indentLevel = 0;
+		if (indentMatch) {
+			indentLevel = Math.floor((indentMatch[1].length - 1) / 4); // Approximate indent level
+		}
+
+		// Check for operation patterns
+		const operationMatch = line.match(/\[([^\]]+)\]\s*"([^"]+)"/);
+		if (operationMatch && indentLevel > 0) {
+			return {
+				lineNumber,
+				timestamp,
+				level,
+				originalLine: line,
+				isOperation: true,
+				operationName: operationMatch[2],
+				operationStatus: operationMatch[1],
+				indentLevel
+			};
+		}
+
+		// Regular log line
+		return {
+			lineNumber,
+			timestamp,
+			level,
+			originalLine: line,
+			indentLevel,
+			isTestCaseStart: false,
+			isOperation: false
+		};
+	}
+
 	// Estimate data size
 	estimateDataSize() {
 		const jsonString = JSON.stringify(this.parsedData);

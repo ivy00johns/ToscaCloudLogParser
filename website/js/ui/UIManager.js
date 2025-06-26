@@ -56,7 +56,7 @@ class UIManager {
 		document.getElementById('wordWrapBtn').style.display = 'none';
 	}
 
-	showLogsView(rawLogText = '') {
+	showLogsView(rawLogText = '', hierarchicalGroups = null) {
 		this.currentView = 'logs';
 		this.updateViewButtons();
 
@@ -69,11 +69,11 @@ class UIManager {
 		const searchFilter = document.getElementById('searchFilter');
 		const searchTerm = searchFilter ? searchFilter.value : '';
 
-		// Display the logs with highlighting
+		// Always use the original colored logs display
 		this.displayColoredLogs(rawLogText, searchTerm);
 	}
 
-	showTableView(rawLogText = '') {
+	showTableView(rawLogText = '', hierarchicalGroups = null) {
 		this.currentView = 'table';
 		this.updateViewButtons();
 
@@ -86,8 +86,12 @@ class UIManager {
 		const searchFilter = document.getElementById('searchFilter');
 		const searchTerm = searchFilter ? searchFilter.value : '';
 
-		// Display the table with structured data
-		this.displayTableView(rawLogText, searchTerm);
+		// Display the table with hierarchical grouping if available
+		if (hierarchicalGroups && hierarchicalGroups.length > 0) {
+			this.displayHierarchicalTable(hierarchicalGroups, searchTerm);
+		} else {
+			this.displayTableView(rawLogText, searchTerm);
+		}
 	}
 
 	updateViewButtons() {
@@ -515,6 +519,7 @@ class UIManager {
 		console.log('🖥️ UI: Logs displayed, lines:', filteredLines.length);
 	}
 
+
 	// Add color highlighting to log lines
 	addColorHighlighting(line) {
 		let highlighted = this.escapeHtml(line);
@@ -778,6 +783,248 @@ class UIManager {
 		return searchableFields.some(field =>
 			field && field.toString().toLowerCase().includes(searchTerm)
 		);
+	}
+
+	// Display table with hierarchical grouping
+	displayHierarchicalTable(hierarchicalGroups, searchTerm = '') {
+		const container = document.getElementById('tableViewContent');
+
+		if (!hierarchicalGroups || hierarchicalGroups.length === 0) {
+			container.innerHTML = '<div class="table-view">No logs to display</div>';
+			return;
+		}
+
+		let html = '<div class="table-view-content">';
+		
+		// Create the table with header
+		html += `
+			<table class="log-table">
+				<thead>
+					<tr>
+						<th style="width: 80px;">Line</th>
+						<th style="width: 120px;">Time</th>
+						<th style="width: 60px;">Level</th>
+						<th>Operation/Message</th>
+						<th style="width: 150px;">Variable</th>
+						<th>Value</th>
+						<th style="width: 60px;">Type</th>
+						<th style="width: 80px;">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+		`;
+
+		// Render groups hierarchically
+		hierarchicalGroups.forEach(group => {
+			html += this.renderTableGroup(group, searchTerm, 0);
+		});
+
+		html += `
+				</tbody>
+			</table>
+		</div>`;
+
+		container.innerHTML = html;
+		
+		// Setup click handlers
+		this.setupTableGroupToggles();
+		console.log('🖥️ UI: Hierarchical table displayed, groups:', hierarchicalGroups.length);
+	}
+
+	// Render a table group with collapsible structure
+	renderTableGroup(group, searchTerm = '', level = 0) {
+		const levelClass = `level-${Math.min(level, 4)}`;
+		const groupId = `table_group_${group.id}`;
+		const toggleId = `table_toggle_${group.id}`;
+		
+		// Check if group matches search
+		const matchesSearch = searchTerm ? this.groupMatchesLogSearch(group, searchTerm) : true;
+		if (!matchesSearch) return '';
+
+		let html = '';
+
+		// Group header row
+		html += `
+			<tr class="table-row-testcase ${levelClass}" data-group-id="${group.id}">
+				<td class="table-line-number"></td>
+				<td class="table-timestamp">${group.timestamp ? group.timestamp.substring(11, 19) : ''}</td>
+				<td class="table-type-inf">INF</td>
+				<td class="table-operation">
+					<span onclick="toggleTableGroup('${groupId}', '${toggleId}')" style="cursor: pointer;">
+						<span id="${toggleId}" class="json-toggle">${group.expanded ? '▼' : '▶'}</span>
+						${group.type === 'testcase' ? '📁' : '🔧'} ${this.escapeHtml(group.name)}
+					</span>
+				</td>
+				<td></td>
+				<td class="log-group-meta" style="font-style: italic; color: #6c757d;">
+					${group.lines.length} lines ${group.subGroups.length > 0 ? `• ${group.subGroups.length} operations` : ''}
+				</td>
+				<td></td>
+				<td></td>
+			</tr>
+		`;
+
+		// Group content rows
+		html += `<tbody id="${groupId}" style="display: ${group.expanded ? 'table-row-group' : 'none'}">`;
+
+		// Render group's direct lines
+		group.lines.forEach(logInfo => {
+			const lineMatches = searchTerm ? logInfo.originalLine.toLowerCase().includes(searchTerm.toLowerCase()) : true;
+			if (lineMatches) {
+				html += this.renderTableLogLine(logInfo, level + 1);
+			}
+		});
+
+		// Render subgroups recursively
+		group.subGroups.forEach(subGroup => {
+			html += this.renderTableGroup(subGroup, searchTerm, level + 1);
+		});
+
+		html += '</tbody>';
+
+		return html;
+	}
+
+	// Render individual log line as table row
+	renderTableLogLine(logInfo, level = 0) {
+		const levelClass = `level-${Math.min(level, 4)}`;
+		const logData = this.extractLogInfo(logInfo.originalLine, logInfo.lineNumber);
+		
+		if (!logData) return '';
+
+		// Extract variable if this is a buffer line
+		const bufferMatch = logInfo.originalLine.match(/Buffer with name:\s*['""]([^'""]+)['""] has been set to value:\s*['""]([^'""]*)['""]?/);
+		const variableName = bufferMatch ? bufferMatch[1] : '';
+		const variableValue = bufferMatch ? bufferMatch[2] : '';
+		const variableType = this.detectVariableType(variableValue);
+
+		return `
+			<tr class="table-row-message ${levelClass}">
+				<td class="table-line-number">${logInfo.lineNumber}</td>
+				<td class="table-timestamp">${logData.timestamp ? logData.timestamp.substring(11, 19) : ''}</td>
+				<td class="table-type-${logData.level?.toLowerCase() || 'inf'}">${logData.level || 'INF'}</td>
+				<td class="table-operation">${this.escapeHtml(logData.operation || logData.message || '')}</td>
+				<td class="table-variable">${variableName ? this.escapeHtml(variableName) : ''}</td>
+				<td class="table-value">${variableValue ? this.renderTableValue(variableValue, variableType) : ''}</td>
+				<td class="table-type-badge">
+					${variableType ? `<span class="type-badge type-${variableType.toLowerCase()}">${variableType}</span>` : ''}
+				</td>
+				<td class="table-actions">
+					${variableValue ? this.renderTableActions(variableName, variableValue, variableType) : ''}
+				</td>
+			</tr>
+		`;
+	}
+
+	// Render table value with appropriate formatting
+	renderTableValue(value, type) {
+		if (!value) return '';
+
+		if (type === 'JSON') {
+			// Handle JSON values
+			const jsonId = `json_${Math.random().toString(36).substr(2, 9)}`;
+			return `
+				<div class="json-table-container">
+					<div class="json-preview-line" onclick="toggleTableJson('${jsonId}')">
+						<span class="json-indicator">{ }</span>
+						<code>${this.escapeHtml(value.substring(0, 50))}${value.length > 50 ? '...' : ''}</code>
+						<span id="${jsonId}-toggle" class="json-toggle">▶</span>
+					</div>
+					<div id="${jsonId}" class="json-expanded-content" style="display: none;">
+						<pre class="json-formatted-table">${this.formatJSON(value)}</pre>
+					</div>
+				</div>
+			`;
+		}
+
+		if (type === 'Token') {
+			return `<span class="token-value" title="Click to view full token">${this.escapeHtml(value.substring(0, 20))}...</span>`;
+		}
+
+		if (type === 'URL') {
+			return `<a href="${this.escapeHtml(value)}" target="_blank" class="url-link">${this.escapeHtml(value)}</a>`;
+		}
+
+		return `<code class="table-value-code">${this.escapeHtml(value)}</code>`;
+	}
+
+	// Render table action buttons
+	renderTableActions(name, value, type) {
+		let actions = `<button class="table-btn table-btn-copy" onclick="navigator.clipboard.writeText('${this.escapeHtml(value)}'); showToast('Copied to clipboard!')" title="Copy">📋</button>`;
+		
+		if (type === 'JSON') {
+			actions += ` <button class="table-btn table-btn-postman" onclick="copyForPostman('${this.escapeHtml(name)}', '${this.escapeHtml(value)}')" title="Copy for Postman">📤</button>`;
+		}
+		
+		actions += ` <button class="table-btn table-btn-view" onclick="showValueModal('${this.escapeHtml(name)}', '${this.escapeHtml(value)}')" title="View Full">👁</button>`;
+		
+		return actions;
+	}
+
+	// Setup table group toggle handlers
+	setupTableGroupToggles() {
+		// Define global function for table group toggling
+		window.toggleTableGroup = (groupId, toggleId) => {
+			const content = document.getElementById(groupId);
+			const toggle = document.getElementById(toggleId);
+			
+			if (content && toggle) {
+				const isExpanded = content.style.display !== 'none';
+				content.style.display = isExpanded ? 'none' : 'table-row-group';
+				toggle.textContent = isExpanded ? '▶' : '▼';
+			}
+		};
+	}
+
+	// Detect variable type for display purposes
+	detectVariableType(value) {
+		if (!value) return 'Buffer Variable';
+
+		// JSON detection
+		if (this.isValidJSON(value)) {
+			try {
+				const parsed = JSON.parse(value);
+				if (typeof parsed === 'object' && parsed !== null) {
+					return 'JSON';
+				}
+			} catch (e) {
+				// Not valid JSON
+			}
+		}
+
+		// Token detection
+		if (value.length > 100 && /^[A-Za-z0-9_\-\.]+$/.test(value)) {
+			return 'Token';
+		}
+
+		// URL detection
+		if (value.includes('http://') || value.includes('https://')) {
+			return 'URL';
+		}
+
+		// ID detection (UUID pattern)
+		if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+			return 'ID';
+		}
+
+		// Timestamp detection
+		if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}/.test(value)) {
+			return 'Timestamp';
+		}
+
+		return 'Buffer Variable';
+	}
+
+	// Check if string is valid JSON
+	isValidJSON(str) {
+		if (!str || typeof str !== 'string') return false;
+		if (!str.trim().startsWith('{') && !str.trim().startsWith('[')) return false;
+		try {
+			JSON.parse(str);
+			return true;
+		} catch (e) {
+			return false;
+		}
 	}
 
 	// Generate HTML for the table

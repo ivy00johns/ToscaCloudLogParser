@@ -39,7 +39,9 @@ class ToscaLogParserApp {
 			this.uiManager.showLogsView(this.dataManager.getRawLogText());
 		});
 		document.getElementById('tableViewBtn')?.addEventListener('click', () => {
-			this.uiManager.showTableView(this.dataManager.getRawLogText());
+			const rawLogText = this.dataManager.getRawLogText();
+			const hierarchicalGroups = this.dataManager.groupLogsByHierarchy(rawLogText);
+			this.uiManager.showTableView(rawLogText, hierarchicalGroups);
 		});
 		document.getElementById('wordWrapBtn')?.addEventListener('click', () => {
 			this.uiManager.toggleWordWrap();
@@ -225,7 +227,9 @@ class ToscaLogParserApp {
 			if (this.uiManager.currentView === 'logs') {
 				this.uiManager.showLogsView(this.dataManager.getRawLogText());
 			} else if (this.uiManager.currentView === 'table') {
-				this.uiManager.showTableView(this.dataManager.getRawLogText());
+				const rawLogText = this.dataManager.getRawLogText();
+				const hierarchicalGroups = this.dataManager.groupLogsByHierarchy(rawLogText);
+				this.uiManager.showTableView(rawLogText, hierarchicalGroups);
 			} else {
 				this.refreshCurrentView();
 			}
