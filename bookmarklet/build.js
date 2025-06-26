@@ -1,197 +1,200 @@
 #!/usr/bin/env node
 
-// Build script for Tosca Log Parser Bookmarklets
-// Automatically encodes source files into bookmarklet format
-
 const fs = require('fs');
 const path = require('path');
+const { encodeBookmarklet } = require('./encode-bookmarklet-simple');
 
 // Configuration
 const config = {
-    // Source files to encode (without extension)
-    sources: [
-        'log-parser-bookmarklet-v2',
-        'log-parser-last-working'
-    ],
-    
-    // Input directory for source files
-    sourceDir: '.',
-    
-    // Output directory for encoded files
-    outputDir: './dist',
-    
-    // File extensions
-    sourceExt: '.js',
-    outputExt: '.js'
+    srcDir: __dirname,
+    distDir: path.join(__dirname, 'dist'),
+    debugDir: path.join(__dirname, 'debug'),
+    bookmarklets: [
+        {
+            input: 'simple-log-copier.js',
+            output: 'tosca-log-copier.bookmarklet.js',
+            name: 'Tosca Log Copier'
+        }
+    ]
 };
 
-// Encoding function (improved version of the original)
-function encodeBookmarklet(sourceContent) {
-    let encoded = sourceContent
-        // Remove single-line comments (but preserve URLs and strings)
-        .replace(/\/\/(?![^"']*["'][^"']*\/\/)[^\r\n]*/g, '')
-        
-        // Remove multi-line comments
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        
-        // Remove excess whitespace and line breaks
-        .replace(/\s+/g, ' ')
-        .trim()
-        
-        // Handle quote escaping for bookmarklet
-        .replace(/'/g, "\\'");
-    
-    // Add javascript: prefix if not present
-    if (!encoded.startsWith('javascript:')) {
-        encoded = 'javascript:' + encoded;
-    }
-    
-    return encoded;
-}
-
-// Create output directory if it doesn't exist
-function ensureOutputDir() {
-    if (!fs.existsSync(config.outputDir)) {
-        fs.mkdirSync(config.outputDir, { recursive: true });
-        console.log(`📁 Created output directory: ${config.outputDir}`);
+// Ensure directories exist
+function ensureDir(dir) {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
     }
 }
 
-// Build a single source file
-function buildFile(sourceName) {
-    const sourceFile = path.join(config.sourceDir, sourceName + config.sourceExt);
-    const outputFile = path.join(config.outputDir, sourceName + '.bookmarklet' + config.outputExt);
-    
-    try {
-        // Check if source file exists
-        if (!fs.existsSync(sourceFile)) {
-            console.log(`⚠️  Source file not found: ${sourceFile}`);
-            return false;
-        }
-        
-        // Read source content
-        const sourceContent = fs.readFileSync(sourceFile, 'utf8');
-        
-        // Encode the content
-        const encodedContent = encodeBookmarklet(sourceContent);
-        
-        // Write encoded file
-        fs.writeFileSync(outputFile, encodedContent);
-        
-        console.log(`✅ Built: ${sourceName}`);
-        console.log(`   📄 Source: ${sourceFile} (${sourceContent.length} chars)`);
-        console.log(`   📦 Output: ${outputFile} (${encodedContent.length} chars)`);
-        console.log(`   📉 Compression: ${Math.round((1 - encodedContent.length / sourceContent.length) * 100)}%`);
-        
-        return true;
-    } catch (error) {
-        console.error(`❌ Error building ${sourceName}: ${error.message}`);
-        return false;
-    }
-}
-
-// Build all source files
-function buildAll() {
-    console.log('🔨 Building Tosca Log Parser Bookmarklets...\n');
-    
-    ensureOutputDir();
-    
-    let successCount = 0;
-    let totalCount = config.sources.length;
-    
-    config.sources.forEach(sourceName => {
-        if (buildFile(sourceName)) {
-            successCount++;
-        }
-        console.log(''); // Empty line for readability
-    });
-    
-    // Summary
-    console.log(`📊 Build Summary:`);
-    console.log(`   ✅ Successfully built: ${successCount}/${totalCount} files`);
-    console.log(`   📂 Output directory: ${config.outputDir}`);
-    
-    if (successCount === totalCount) {
-        console.log('\n🎉 All bookmarklets built successfully!');
-        console.log('\n💡 Usage:');
-        console.log('   1. Copy the content from the .bookmarklet.js files');
-        console.log('   2. Create a new bookmark in your browser');
-        console.log('   3. Paste the content as the URL');
-        console.log('   4. Click the bookmark on any page to run the tool');
-    } else {
-        console.log(`\n⚠️  ${totalCount - successCount} file(s) failed to build.`);
-        process.exit(1);
-    }
-}
-
-// Watch mode for development
-function watchFiles() {
-    console.log('👀 Watching for file changes...\n');
-    
-    config.sources.forEach(sourceName => {
-        const sourceFile = path.join(config.sourceDir, sourceName + config.sourceExt);
-        
-        if (fs.existsSync(sourceFile)) {
-            fs.watchFile(sourceFile, (curr, prev) => {
-                console.log(`🔄 File changed: ${sourceName}`);
-                buildFile(sourceName);
-                console.log('👀 Watching for file changes...\n');
-            });
-            console.log(`👁️  Watching: ${sourceFile}`);
+// Clean build directories
+function clean() {
+    console.log('🧹 Cleaning build directories...');
+    [config.distDir, config.debugDir].forEach(dir => {
+        if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true });
         }
     });
+    console.log('✅ Clean complete');
 }
 
-// Command line interface
-function main() {
-    const args = process.argv.slice(2);
-    const command = args[0];
+// Build all bookmarklets
+function build() {
+    console.log('🔨 Building bookmarklets...\n');
     
-    switch (command) {
-        case 'build':
-        case undefined:
-            buildAll();
-            break;
+    ensureDir(config.distDir);
+    ensureDir(config.debugDir);
+    
+    config.bookmarklets.forEach(bookmarklet => {
+        const inputPath = path.join(config.srcDir, bookmarklet.input);
+        const outputPath = path.join(config.distDir, bookmarklet.output);
+        
+        console.log(`📦 Building ${bookmarklet.name}...`);
+        
+        try {
+            // Read source
+            const source = fs.readFileSync(inputPath, 'utf8');
             
-        case 'watch':
-            ensureOutputDir();
-            watchFiles();
-            break;
+            // Simple minification
+            const minified = source
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/\/\/.*$/gm, '')
+                .replace(/\s+/g, ' ')
+                .replace(/\s*([{}()\[\];,:])\s*/g, '$1')
+                .replace(/;}/g, '}')
+                .trim();
             
-        case 'clean':
-            if (fs.existsSync(config.outputDir)) {
-                fs.rmSync(config.outputDir, { recursive: true });
-                console.log(`🗑️  Cleaned output directory: ${config.outputDir}`);
+            // Create bookmarklet
+            const bookmarkletCode = 'javascript:' + encodeURIComponent(minified);
+            
+            // Write dist version
+            fs.writeFileSync(outputPath, bookmarkletCode);
+            
+            // Write debug version
+            const debugPath = path.join(config.debugDir, bookmarklet.output.replace('.bookmarklet.js', '.debug.js'));
+            const debugContent = `// ${bookmarklet.name}
+// Source: ${bookmarklet.input}
+// Generated: ${new Date().toISOString()}
+// Size: ${source.length} → ${minified.length} bytes
+// Bookmarklet length: ${bookmarkletCode.length} characters
+
+${bookmarkletCode}`;
+            
+            fs.writeFileSync(debugPath, debugContent);
+            
+            // Write HTML test page
+            const htmlPath = path.join(config.distDir, 'test.html');
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Tosca Log Parser Bookmarklets</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .bookmarklet { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            background: #667eea; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            margin: 10px 0;
+        }
+        .instructions { 
+            background: #f7fafc; 
+            padding: 20px; 
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        code { 
+            background: #e2e8f0; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Tosca Log Parser Bookmarklets</h1>
+    
+    <div class="instructions">
+        <h2>Installation Instructions:</h2>
+        <ol>
+            <li>Drag the bookmarklet link below to your bookmarks bar</li>
+            <li>Or right-click and select "Bookmark This Link"</li>
+            <li>Navigate to a Tosca Cloud page with logs</li>
+            <li>Click the bookmarklet to extract logs to clipboard</li>
+        </ol>
+    </div>
+    
+    <h2>Available Bookmarklets:</h2>
+    ${config.bookmarklets.map(b => {
+        const bookmarkletContent = fs.readFileSync(path.join(config.distDir, b.output), 'utf8');
+        return `<div>
+            <h3>${b.name}</h3>
+            <a href="${bookmarkletContent}" class="bookmarklet">${b.name}</a>
+            <p>Length: ${bookmarkletContent.length} characters</p>
+        </div>`;
+    }).join('\n')}
+    
+    <h2>Test Area:</h2>
+    <p>Paste some Tosca logs here to test the parser:</p>
+    <textarea id="testLogs" style="width: 100%; height: 200px; font-family: monospace;">
+2025-06-19 16:53:51Z [INF][TBox] Message: Buffer with name: "access_token" has been set to value: "eyJraWQiOiJ4WnhacmEtNUFiYUs3dXZfWmVOd3NPdGRrVzhldEN6VzhrQlN2c2trRnVrIiwiYWxnIjoiUlMyNTYifQ"
+2025-06-19 16:53:51Z [INF][TBox] Message: Buffer with name 'TOSCA_URL' has been set to value 'https://fusionx.my-test.tricentis.com/e0d90de6-6b5a-4517-af9b-ea11e8f5ab81'.
+    </textarea>
+</body>
+</html>`;
+            
+            fs.writeFileSync(htmlPath, htmlContent);
+            
+            console.log(`✅ Built ${bookmarklet.name}`);
+            console.log(`   Output: ${outputPath}`);
+            console.log(`   Size: ${source.length} → ${minified.length} bytes`);
+            console.log(`   Length: ${bookmarkletCode.length} characters\n`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to build ${bookmarklet.name}:`, error.message);
+        }
+    });
+    
+    console.log('✅ Build complete!');
+    console.log(`📁 Output directory: ${config.distDir}`);
+    console.log(`🔍 Debug directory: ${config.debugDir}`);
+    console.log(`🌐 Test page: ${path.join(config.distDir, 'test.html')}`);
+}
+
+// Watch mode
+function watch() {
+    console.log('👀 Watching for changes...\n');
+    
+    const watchers = config.bookmarklets.map(bookmarklet => {
+        const inputPath = path.join(config.srcDir, bookmarklet.input);
+        
+        return fs.watch(inputPath, (eventType) => {
+            if (eventType === 'change') {
+                console.log(`\n🔄 ${bookmarklet.input} changed, rebuilding...`);
+                build();
             }
-            break;
-            
-        case 'help':
-        case '--help':
-        case '-h':
-            console.log('🔨 Tosca Log Parser Bookmarklet Builder\n');
-            console.log('Usage:');
-            console.log('  node build.js [command]\n');
-            console.log('Commands:');
-            console.log('  build    Build all bookmarklets (default)');
-            console.log('  watch    Watch source files and rebuild on changes');
-            console.log('  clean    Remove all built files');
-            console.log('  help     Show this help message\n');
-            console.log('Examples:');
-            console.log('  node build.js              # Build all bookmarklets');
-            console.log('  node build.js build        # Same as above');
-            console.log('  node build.js watch        # Watch and auto-rebuild');
-            console.log('  node build.js clean        # Clean output directory');
-            break;
-            
-        default:
-            console.error(`❌ Unknown command: ${command}`);
-            console.log('Run "node build.js help" for usage information.');
-            process.exit(1);
-    }
+        });
+    });
+    
+    process.on('SIGINT', () => {
+        console.log('\n👋 Stopping watch mode...');
+        watchers.forEach(w => w.close());
+        process.exit(0);
+    });
 }
 
-if (require.main === module) {
-    main();
+// CLI
+const command = process.argv[2];
+
+switch (command) {
+    case 'clean':
+        clean();
+        break;
+    case 'watch':
+        build();
+        watch();
+        break;
+    default:
+        build();
 }
 
-module.exports = { encodeBookmarklet, buildFile, buildAll };
+module.exports = { build, clean };

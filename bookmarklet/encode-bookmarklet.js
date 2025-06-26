@@ -1,49 +1,54 @@
 #!/usr/bin/env node
 
-// Simple script to encode JavaScript files into bookmarklets
-// Usage: node encode-bookmarklet.js <input-file> <output-file>
-
 const fs = require('fs');
 const path = require('path');
+const { minify } = require('terser');
 
-function encodeBookmarklet(inputFile, outputFile) {
+async function encodeBookmarklet(inputFile, outputFile) {
     try {
         // Read the input file
-        const content = fs.readFileSync(inputFile, 'utf8');
+        const code = fs.readFileSync(inputFile, 'utf8');
         
-        // Process the content
-        let encoded = content
-            // Remove single-line comments (but preserve URLs and strings)
-            .replace(/\/\/(?![^"']*["'][^"']*\/\/)[^\r\n]*/g, '')
-            
-            // Remove multi-line comments
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            
-            // Remove excess whitespace and line breaks
-            .replace(/\s+/g, ' ')
-            .trim()
-            
-            // Handle quote escaping for bookmarklet
-            .replace(/'/g, "\\'")
-            
-            // Remove any remaining line breaks
-            .replace(/[\r\n]/g, '');
+        // Minify the code
+        const minified = await minify(code, {
+            compress: {
+                drop_console: false, // Keep console for debugging
+                drop_debugger: true,
+                passes: 2
+            },
+            mangle: {
+                toplevel: true
+            },
+            format: {
+                comments: false,
+                ascii_only: true
+            }
+        });
         
-        // Add javascript: prefix if not present
-        if (!encoded.startsWith('javascript:')) {
-            encoded = 'javascript:' + encoded;
+        if (minified.error) {
+            throw minified.error;
         }
         
-        // Write to output file
-        fs.writeFileSync(outputFile, encoded);
+        // Create the bookmarklet
+        const bookmarkletCode = minified.code || code;
+        const bookmarklet = 'javascript:' + encodeURIComponent(bookmarkletCode);
         
-        console.log(`✅ Successfully encoded bookmarklet:`);
-        console.log(`   Input:  ${inputFile}`);
+        // Write to output file
+        fs.writeFileSync(outputFile, bookmarklet);
+        
+        // Also create a formatted version for debugging
+        const debugFile = outputFile.replace('.bookmarklet.js', '.debug.js');
+        fs.writeFileSync(debugFile, `// Bookmarklet source: ${inputFile}\n// Generated: ${new Date().toISOString()}\n// Length: ${bookmarklet.length} characters\n\n${bookmarklet}`);
+        
+        console.log(`✅ Bookmarklet created successfully!`);
+        console.log(`   Input: ${inputFile}`);
         console.log(`   Output: ${outputFile}`);
-        console.log(`   Size:   ${content.length} → ${encoded.length} characters`);
+        console.log(`   Debug: ${debugFile}`);
+        console.log(`   Size: ${code.length} → ${bookmarkletCode.length} bytes (${Math.round((1 - bookmarkletCode.length / code.length) * 100)}% reduction)`);
+        console.log(`   Total length: ${bookmarklet.length} characters`);
         
     } catch (error) {
-        console.error(`❌ Error encoding bookmarklet: ${error.message}`);
+        console.error('❌ Error encoding bookmarklet:', error.message);
         process.exit(1);
     }
 }
@@ -52,22 +57,14 @@ function encodeBookmarklet(inputFile, outputFile) {
 if (require.main === module) {
     const args = process.argv.slice(2);
     
-    if (args.length !== 2) {
-        console.log('Usage: node encode-bookmarklet.js <input-file> <output-file>');
-        console.log('');
-        console.log('Examples:');
-        console.log('  node encode-bookmarklet.js log-parser-v3.js log-parser-v3-encoded.js');
-        console.log('  node encode-bookmarklet.js my-script.js bookmarklet.txt');
+    if (args.length < 1) {
+        console.log('Usage: node encode-bookmarklet.js <input-file> [output-file]');
+        console.log('Example: node encode-bookmarklet.js simple-log-copier.js simple-log-copier.bookmarklet.js');
         process.exit(1);
     }
     
-    const [inputFile, outputFile] = args;
-    
-    // Check if input file exists
-    if (!fs.existsSync(inputFile)) {
-        console.error(`❌ Input file not found: ${inputFile}`);
-        process.exit(1);
-    }
+    const inputFile = args[0];
+    const outputFile = args[1] || inputFile.replace('.js', '.bookmarklet.js');
     
     encodeBookmarklet(inputFile, outputFile);
 }

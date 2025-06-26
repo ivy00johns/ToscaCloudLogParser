@@ -1,20 +1,20 @@
 {
   "name": "tosca-log-parser-bookmarklets",
   "version": "1.0.0",
-  "description": "Build system for Tosca Cloud Log Parser bookmarklets",
+  "description": "Bookmarklets for extracting Tosca Cloud logs",
   "main": "build.js",
   "scripts": {
-    "build": "node build.js build",
-    "watch": "node build.js watch",
+    "build": "node build.js",
     "clean": "node build.js clean",
-    "dev": "node build.js watch"
+    "watch": "node build.js watch",
+    "dev": "npm run build && npm run watch"
   },
   "keywords": [
     "tosca",
-    "log-parser",
     "bookmarklet",
-    "automation"
+    "log parser",
+    "testing"
   ],
-  "author": "",
+  "author": "John Stennett",
   "license": "MIT"
 }

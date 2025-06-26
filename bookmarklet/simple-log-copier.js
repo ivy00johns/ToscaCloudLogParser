@@ -1,12 +1,10 @@
-// Simple Tosca Log Copier Bookmarklet
-// Extracts logs from page and copies to clipboard for testing
-
-(function () {
-	// Helper function to show notification
-	function showNotification(message, success = true) {
-		const notification = document.createElement('div');
-		notification.textContent = message;
-		notification.style.cssText = `
+// Simple Tosca Log Copier - Extract logs from Tosca Cloud page
+(function() {
+    // Show notification function
+    function showNotification(message, success = true) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
@@ -21,113 +19,102 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             max-width: 300px;
         `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
 
-		document.body.appendChild(notification);
+    // Copy text to clipboard
+    async function copyToClipboard(text) {
+        try {
+            if (navigator.clipboard) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            return true;
+        } catch (error) {
+            console.error('Copy failed:', error);
+            return false;
+        }
+    }
 
-		setTimeout(() => {
-			notification.remove();
-		}, 3000);
-	}
+    // Find log container using Tosca Cloud specific selectors
+    function findLogContainer() {
+        const selectors = [
+            // Tosca Cloud specific selectors (Material-UI based)
+            '.MuiBox-root.css-0',
+            '[class*="MuiBox"][class*="css-"]',
+            '[data-testid*="log"]',
+            
+            // Generic log selectors
+            '.log-container',
+            '.tosca-log-container',
+            '.execution-log',
+            '.console-output',
+            'pre',
+            
+            // Text areas that might contain logs
+            'textarea[readonly]'
+        ];
 
-	// Copy text to clipboard
-	function copyToClipboard(text) {
-		if (navigator.clipboard) {
-			return navigator.clipboard.writeText(text);
-		} else {
-			// Fallback for older browsers
-			const textArea = document.createElement('textarea');
-			textArea.value = text;
-			textArea.style.position = 'fixed';
-			textArea.style.left = '-999999px';
-			document.body.appendChild(textArea);
-			textArea.select();
-			document.execCommand('copy');
-			document.body.removeChild(textArea);
-			return Promise.resolve();
-		}
-	}
+        for (const selector of selectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const element of elements) {
+                const text = element.textContent || element.innerText;
+                // Check if this element contains Tosca log patterns
+                if (text && text.length > 100 && (
+                    text.includes('[INF][TBox]') ||
+                    text.includes('Starting TestCase') ||
+                    text.includes('Buffer with name')
+                )) {
+                    return element;
+                }
+            }
+        }
+        
+        return null;
+    }
 
-	// Extract logs from page
-	function extractLogs() {
-		let logText = '';
+    // Main execution
+    try {
+        const logContainer = findLogContainer();
+        
+        if (!logContainer) {
+            showNotification('No Tosca logs found on this page', false);
+            return;
+        }
 
-		// Common selectors for log content on Tosca Cloud pages
-		const logSelectors = [
-			// Try common log container selectors
-			'.log-container pre',
-			'.log-content pre',
-			'.console-output pre',
-			'#logContent pre',
-			'.execution-log pre',
-			'textarea[readonly]',
-			'.log-viewer pre',
-			'.output-content pre',
-			// Generic fallbacks
-			'pre',
-			'.logs',
-			'.console',
-			'.output'
-		];
+        const logText = logContainer.textContent || logContainer.innerText;
+        
+        if (!logText || logText.length < 100) {
+            showNotification('Log container found but appears empty', false);
+            return;
+        }
 
-		// Try each selector until we find logs
-		for (const selector of logSelectors) {
-			const elements = document.querySelectorAll(selector);
-			for (const element of elements) {
-				const text = element.textContent || element.innerText;
-				if (text && text.length > 100 && (
-					text.includes('Starting TestCase') ||
-					text.includes('Buffer with name') ||
-					text.includes('http') ||
-					text.includes('Execution') ||
-					text.includes('TestCase')
-				)) {
-					logText = text;
-					break;
-				}
-			}
-			if (logText) break;
-		}
+        copyToClipboard(logText).then(success => {
+            if (success) {
+                const lineCount = logText.split('\n').length;
+                const sizeKB = (logText.length / 1024).toFixed(1);
+                showNotification(`Tosca logs copied! ${lineCount} lines, ${sizeKB}KB`);
+            } else {
+                showNotification('Failed to copy logs to clipboard', false);
+            }
+        });
 
-		// If no structured logs found, try to find any long text content
-		if (!logText) {
-			const allElements = document.querySelectorAll('*');
-			for (const element of allElements) {
-				const text = element.textContent || element.innerText;
-				if (text && text.length > 500 && (
-					text.includes('Starting TestCase') ||
-					text.includes('Buffer with name')
-				)) {
-					// Make sure this isn't just the whole page
-					if (text.length < 50000) {
-						logText = text;
-						break;
-					}
-				}
-			}
-		}
-
-		return logText;
-	}
-
-	// Main execution
-	try {
-		const logs = extractLogs();
-
-		if (!logs) {
-			showNotification('No logs found on this page', false);
-			return;
-		}
-
-		copyToClipboard(logs).then(() => {
-			const lineCount = logs.split('\n').length;
-			const charCount = logs.length;
-			showNotification(`Logs copied! ${lineCount} lines, ${(charCount / 1024).toFixed(1)}KB`);
-		}).catch(() => {
-			showNotification('Failed to copy logs', false);
-		});
-
-	} catch (error) {
-		console.error('Log copier error:', error);
-		showNotification('Error extracting logs', false);
-	}
+    } catch (error) {
+        console.error('Tosca log copier error:', error);
+        showNotification('Error extracting logs: ' + error.message, false);
+    }
 })();
