@@ -101,7 +101,7 @@ class UIManager {
 
 	toggleWordWrap() {
 		this.wordWrapEnabled = !this.wordWrapEnabled;
-		const logContent = document.querySelector('.log-view-content');
+		const logContent = document.querySelector('#logViewContent .log-view-content');
 		if (logContent) {
 			logContent.classList.toggle('word-wrap', this.wordWrapEnabled);
 		}
@@ -109,7 +109,10 @@ class UIManager {
 		const btn = document.getElementById('wordWrapBtn');
 		if (btn) {
 			btn.textContent = this.wordWrapEnabled ? '📄 Unwrap' : '📄 Wrap';
+			btn.classList.toggle('active', this.wordWrapEnabled);
 		}
+		
+		console.log('🖥️ UI: Word wrap toggled:', this.wordWrapEnabled, 'Element found:', !!logContent);
 	}
 
 	// Show/hide loading state
@@ -357,6 +360,23 @@ class UIManager {
 				<button onclick="window.app.copyToClipboard('${this.escapeForJS(variable.value)}')" class="var-btn var-btn-copy" title="Copy URL">📋</button>
 				<button onclick="window.open('${this.escapeForJS(variable.value)}', '_blank')" class="var-btn var-btn-view" title="Open URL">🔗</button>
 			`;
+		} else if (variable.type === 'Token') {
+			// Truncate tokens by half
+			const halfLength = Math.floor(variable.value.length / 10);
+			const displayValue = variable.value.substring(0, halfLength) + '...';
+			valueDisplay = `<span class="variable-value token-value">${this.escapeHtml(displayValue)}</span>`;
+			actionButtons = `
+				<button onclick="window.app.copyToClipboard('${this.escapeForJS(variable.value)}')" class="var-btn var-btn-copy" title="Copy Token">📋</button>
+				<button onclick="window.app.showFullValue('${this.escapeForJS(variable.value)}', '${this.escapeForJS(variable.name)}', ${variable.line})" class="var-btn var-btn-view" title="View Full">👁️</button>
+			`;
+		} else if (variable.type === 'ID') {
+			const displayValue = variable.value.length > 100 ?
+				variable.value.substring(0, 100) + '...' : variable.value;
+			valueDisplay = `<span class="variable-value id-value">${this.escapeHtml(displayValue)}</span>`;
+			actionButtons = `
+				<button onclick="window.app.copyToClipboard('${this.escapeForJS(variable.value)}')" class="var-btn var-btn-copy" title="Copy Value">📋</button>
+				<button onclick="window.app.showFullValue('${this.escapeForJS(variable.value)}', '${this.escapeForJS(variable.name)}', ${variable.line})" class="var-btn var-btn-view" title="View Full">👁️</button>
+			`;
 		} else {
 			const displayValue = variable.value.length > 100 ?
 				variable.value.substring(0, 100) + '...' : variable.value;
@@ -508,12 +528,13 @@ class UIManager {
 			container.classList.add('word-wrap');
 		}
 
-		let html = '';
+		let html = '<div class="log-view-content">';
 		filteredLines.forEach(item => {
 			const highlightedLine = this.addColorHighlighting(item.line);
 			const lineNumber = typeof item.index !== 'undefined' ? item.index + 1 : item;
 			html += `<div class="log-line" data-line="${lineNumber}">${highlightedLine}</div>`;
 		});
+		html += '</div>';
 
 		container.innerHTML = html;
 		console.log('🖥️ UI: Logs displayed, lines:', filteredLines.length);
@@ -795,7 +816,7 @@ class UIManager {
 		}
 
 		let html = '<div class="table-view-content">';
-		
+
 		// Create the table with header
 		html += `
 			<table class="log-table">
@@ -825,7 +846,7 @@ class UIManager {
 		</div>`;
 
 		container.innerHTML = html;
-		
+
 		// Setup click handlers
 		this.setupTableGroupToggles();
 		console.log('🖥️ UI: Hierarchical table displayed, groups:', hierarchicalGroups.length);
@@ -836,7 +857,7 @@ class UIManager {
 		const levelClass = `level-${Math.min(level, 4)}`;
 		const groupId = `table_group_${group.id}`;
 		const toggleId = `table_toggle_${group.id}`;
-		
+
 		// Check if group matches search
 		const matchesSearch = searchTerm ? this.groupMatchesLogSearch(group, searchTerm) : true;
 		if (!matchesSearch) return '';
@@ -889,7 +910,7 @@ class UIManager {
 	renderTableLogLine(logInfo, level = 0) {
 		const levelClass = `level-${Math.min(level, 4)}`;
 		const logData = this.extractLogInfo(logInfo.originalLine, logInfo.lineNumber);
-		
+
 		if (!logData) return '';
 
 		// Extract variable if this is a buffer line
@@ -922,7 +943,7 @@ class UIManager {
 
 		if (type === 'JSON') {
 			// Handle JSON values
-			const jsonId = `json_${Math.random().toString(36).substr(2, 9)}`;
+			const jsonId = `json_${Math.random().toString(36).substring(2, 11)}`;
 			return `
 				<div class="json-table-container">
 					<div class="json-preview-line" onclick="toggleTableJson('${jsonId}')">
@@ -951,13 +972,13 @@ class UIManager {
 	// Render table action buttons
 	renderTableActions(name, value, type) {
 		let actions = `<button class="table-btn table-btn-copy" onclick="navigator.clipboard.writeText('${this.escapeHtml(value)}'); showToast('Copied to clipboard!')" title="Copy">📋</button>`;
-		
+
 		if (type === 'JSON') {
 			actions += ` <button class="table-btn table-btn-postman" onclick="copyForPostman('${this.escapeHtml(name)}', '${this.escapeHtml(value)}')" title="Copy for Postman">📤</button>`;
 		}
-		
+
 		actions += ` <button class="table-btn table-btn-view" onclick="showValueModal('${this.escapeHtml(name)}', '${this.escapeHtml(value)}')" title="View Full">👁</button>`;
-		
+
 		return actions;
 	}
 
@@ -967,7 +988,7 @@ class UIManager {
 		window.toggleTableGroup = (groupId, toggleId) => {
 			const content = document.getElementById(groupId);
 			const toggle = document.getElementById(toggleId);
-			
+
 			if (content && toggle) {
 				const isExpanded = content.style.display !== 'none';
 				content.style.display = isExpanded ? 'none' : 'table-row-group';
