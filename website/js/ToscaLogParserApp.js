@@ -29,6 +29,25 @@ class ToscaLogParserApp {
 
 		// Debug toggle
 		document.getElementById('debugBtn')?.addEventListener('click', () => this.toggleDebug());
+
+		// View switching buttons
+		document.getElementById('variablesViewBtn')?.addEventListener('click', () => {
+			this.uiManager.showVariablesView();
+			this.refreshCurrentView();
+		});
+		document.getElementById('logsViewBtn')?.addEventListener('click', () => {
+			this.uiManager.showLogsView(this.dataManager.getRawLogText());
+		});
+		document.getElementById('tableViewBtn')?.addEventListener('click', () => {
+			this.uiManager.showTableView();
+			this.refreshCurrentView();
+		});
+		document.getElementById('wordWrapBtn')?.addEventListener('click', () => {
+			this.uiManager.toggleWordWrap();
+		});
+
+		// Search filter
+		document.getElementById('searchFilter')?.addEventListener('input', () => this.handleSearchChange());
 	}
 
 	log(message, data = null) {
@@ -183,12 +202,11 @@ class ToscaLogParserApp {
 	}
 
 	displayLogsView() {
-		// Implementation for logs view would go here
-		// For now, just show a placeholder
-		const container = document.getElementById('logViewContent');
-		if (container) {
-			container.innerHTML = '<div class="log-view-content">Logs view - to be implemented</div>';
-		}
+		// Get the raw log text from the data manager
+		const rawLogText = this.dataManager.getRawLogText();
+
+		// Use the UI manager to display the logs with syntax highlighting
+		this.uiManager.showLogsView(rawLogText);
 	}
 
 	displayTableView() {
@@ -204,7 +222,13 @@ class ToscaLogParserApp {
 		try {
 			const searchTerm = document.getElementById('searchFilter')?.value || '';
 			this.dataManager.applyFilters(searchTerm);
-			this.refreshCurrentView();
+
+			// For logs view, refresh with search term
+			if (this.uiManager.currentView === 'logs') {
+				this.uiManager.showLogsView(this.dataManager.getRawLogText());
+			} else {
+				this.refreshCurrentView();
+			}
 		} catch (error) {
 			this.log('Search error', error);
 			this.uiManager.showError('Search failed', error);

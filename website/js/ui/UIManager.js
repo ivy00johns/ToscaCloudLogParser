@@ -56,7 +56,7 @@ class UIManager {
 		document.getElementById('wordWrapBtn').style.display = 'none';
 	}
 
-	showLogsView() {
+	showLogsView(rawLogText = '') {
 		this.currentView = 'logs';
 		this.updateViewButtons();
 
@@ -64,6 +64,13 @@ class UIManager {
 		document.getElementById('logViewContent').style.display = 'block';
 		document.getElementById('tableViewContent').style.display = 'none';
 		document.getElementById('wordWrapBtn').style.display = 'inline-block';
+
+		// Get search filter if active
+		const searchFilter = document.getElementById('searchFilter');
+		const searchTerm = searchFilter ? searchFilter.value : '';
+
+		// Display the logs with highlighting
+		this.displayColoredLogs(rawLogText, searchTerm);
 	}
 
 	showTableView() {
@@ -466,6 +473,137 @@ class UIManager {
 		console.error('UI Error:', message, error);
 		this.showToast(`Error: ${message}`, 'error');
 		this.hideLoading();
+	}
+
+	// Display colored logs with syntax highlighting
+	displayColoredLogs(rawLogText, searchTerm = '') {
+		const container = document.getElementById('logViewContent');
+
+		if (!rawLogText) {
+			container.innerHTML = '<div class="log-view-content">No logs to display</div>';
+			return;
+		}
+
+		const logLines = rawLogText.split('\n');
+
+		// Apply search filter if active
+		const filteredLines = searchTerm ?
+			logLines.map((line, index) => ({ line, index }))
+				.filter(item => item.line.toLowerCase().includes(searchTerm.toLowerCase())) :
+			logLines.map((line, index) => ({ line, index }));
+
+		container.className = 'log-view-content';
+		if (this.wordWrapEnabled) {
+			container.classList.add('word-wrap');
+		}
+
+		let html = '';
+		filteredLines.forEach(item => {
+			const highlightedLine = this.addColorHighlighting(item.line);
+			const lineNumber = typeof item.index !== 'undefined' ? item.index + 1 : item;
+			html += `<div class="log-line" data-line="${lineNumber}">${highlightedLine}</div>`;
+		});
+
+		container.innerHTML = html;
+		console.log('🖥️ UI: Logs displayed, lines:', filteredLines.length);
+	}
+
+	// Add color highlighting to log lines
+	addColorHighlighting(line) {
+		let highlighted = this.escapeHtml(line);
+
+		// Highlight timestamps
+		highlighted = highlighted.replace(
+			/^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/g,
+			'<span class="log-timestamp">$1</span>'
+		);
+
+		// Highlight log levels
+		highlighted = highlighted.replace(/\[(INF|ERR|WAR|DEB)\]/g, '<span class="log-level-$1">[$1]</span>');
+
+		// Highlight test case names
+		highlighted = highlighted.replace(
+			/(Starting TestCase\s*['"])([^'"]+)(['"'])/g,
+			'$1<span class="log-testcase">$2</span>$3'
+		);
+
+		// Highlight JSON objects in logs
+		if (highlighted.includes('{') && highlighted.includes('}') && highlighted.includes('"')) {
+			// Highlight the entire JSON block with a background
+			highlighted = highlighted.replace(
+				/(\{[^}]*\})/g,
+				'<span class="log-json-block">$1</span>'
+			);
+
+			// Highlight JSON keys
+			highlighted = highlighted.replace(
+				/("[\w-]+")(\s*:\s*)/g,
+				'<span class="log-json-key">$1</span><span class="log-json-colon">$2</span>'
+			);
+
+			// Highlight JSON string values
+			highlighted = highlighted.replace(
+				/(:)(\s*)("([^"\\\\]|\\\\.)*")/g,
+				'$1$2<span class="log-json-string">$3</span>'
+			);
+
+			// Highlight JSON numbers
+			highlighted = highlighted.replace(
+				/(:)(\s*)(\d+\.?\d*)/g,
+				'$1$2<span class="log-json-number">$3</span>'
+			);
+
+			// Highlight JSON booleans and null
+			highlighted = highlighted.replace(
+				/(:)(\s*)(true|false|null)/g,
+				'$1$2<span class="log-json-boolean">$3</span>'
+			);
+
+			// Highlight JSON brackets
+			highlighted = highlighted.replace(
+				/([{}[\]])/g,
+				'<span class="log-json-bracket">$1</span>'
+			);
+		}
+
+		// Highlight request/response operations
+		highlighted = highlighted.replace(
+			/(\[Succeeded\]\s*['"])([^'"]*(?:Request|request)[^'"]*?)(['"])/g,
+			'$1<span class="log-request-operation">$2</span>$3'
+		);
+
+		highlighted = highlighted.replace(
+			/(\[Succeeded\]\s*['"])([^'"]*(?:Response|response)[^'"]*?)(['"])/g,
+			'$1<span class="log-response-operation">$2</span>$3'
+		);
+
+		// Highlight HTTP status codes and response times
+		highlighted = highlighted.replace(
+			/(Server Response Time:\s*)(\d+\s*ms)/g,
+			'$1<span class="log-response-time">$2</span>'
+		);
+
+		highlighted = highlighted.replace(
+			/(Expected value == |Actual value:\s*)(["']?\d{3}\s+[A-Za-z\s]+["']?)/g,
+			'$1<span class="log-status-code">$2</span>'
+		);
+
+		// Highlight buffer variables
+		highlighted = highlighted.replace(
+			/(Buffer with name[:\s]*['"])([^'"]*?)(['"][^'"]*has been set to value[:\s]*['"])([^'"]*?)(['"])/g,
+			'$1<span class="log-buffer-name">$2</span>$3<span class="log-buffer-value">$4</span>$5'
+		);
+
+		// Highlight URLs
+		highlighted = highlighted.replace(
+			/(^|[^>])(https?:\/\/[^\s'"<>]+)/g,
+			'$1<span class="log-url">$2</span>'
+		);
+
+		// Highlight status
+		highlighted = highlighted.replace(/\[(Succeeded|Failed)\]/g, '<span class="log-status-$1">[$1]</span>');
+
+		return highlighted;
 	}
 
 	// Utility functions
