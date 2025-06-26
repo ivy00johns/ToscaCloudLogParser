@@ -39,8 +39,7 @@ class ToscaLogParserApp {
 			this.uiManager.showLogsView(this.dataManager.getRawLogText());
 		});
 		document.getElementById('tableViewBtn')?.addEventListener('click', () => {
-			this.uiManager.showTableView();
-			this.refreshCurrentView();
+			this.uiManager.showTableView(this.dataManager.getRawLogText());
 		});
 		document.getElementById('wordWrapBtn')?.addEventListener('click', () => {
 			this.uiManager.toggleWordWrap();
@@ -210,12 +209,11 @@ class ToscaLogParserApp {
 	}
 
 	displayTableView() {
-		// Implementation for table view would go here
-		// For now, just show a placeholder
-		const container = document.getElementById('tableViewContent');
-		if (container) {
-			container.innerHTML = '<div class="table-view-content">Table view - to be implemented</div>';
-		}
+		// Get the raw log text from the data manager
+		const rawLogText = this.dataManager.getRawLogText();
+
+		// Use the UI manager to display the table with structured data
+		this.uiManager.showTableView(rawLogText);
 	}
 
 	handleSearchChange() {
@@ -223,9 +221,11 @@ class ToscaLogParserApp {
 			const searchTerm = document.getElementById('searchFilter')?.value || '';
 			this.dataManager.applyFilters(searchTerm);
 
-			// For logs view, refresh with search term
+			// For logs and table views, refresh with search term
 			if (this.uiManager.currentView === 'logs') {
 				this.uiManager.showLogsView(this.dataManager.getRawLogText());
+			} else if (this.uiManager.currentView === 'table') {
+				this.uiManager.showTableView(this.dataManager.getRawLogText());
 			} else {
 				this.refreshCurrentView();
 			}

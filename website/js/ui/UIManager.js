@@ -73,7 +73,7 @@ class UIManager {
 		this.displayColoredLogs(rawLogText, searchTerm);
 	}
 
-	showTableView() {
+	showTableView(rawLogText = '') {
 		this.currentView = 'table';
 		this.updateViewButtons();
 
@@ -81,6 +81,13 @@ class UIManager {
 		document.getElementById('logViewContent').style.display = 'none';
 		document.getElementById('tableViewContent').style.display = 'block';
 		document.getElementById('wordWrapBtn').style.display = 'none';
+
+		// Get search filter if active
+		const searchFilter = document.getElementById('searchFilter');
+		const searchTerm = searchFilter ? searchFilter.value : '';
+
+		// Display the table with structured data
+		this.displayTableView(rawLogText, searchTerm);
 	}
 
 	updateViewButtons() {
@@ -604,6 +611,321 @@ class UIManager {
 		highlighted = highlighted.replace(/\[(Succeeded|Failed)\]/g, '<span class="log-status-$1">[$1]</span>');
 
 		return highlighted;
+	}
+
+	// Display structured table view with JSON handling
+	displayTableView(rawLogText, searchTerm = '') {
+		const container = document.getElementById('tableViewContent');
+
+		if (!rawLogText) {
+			container.innerHTML = '<div class="table-view">No logs to display</div>';
+			return;
+		}
+
+		// Parse raw logs into structured table data
+		const tableData = this.parseLogsForTable(rawLogText);
+
+		// Apply search filter if active
+		const filteredTableData = searchTerm ?
+			tableData.filter(row => this.matchesTableSearch(row, searchTerm.toLowerCase())) :
+			tableData;
+
+		// Generate table HTML
+		const tableHTML = this.generateTableHTML(filteredTableData);
+		container.innerHTML = tableHTML;
+		console.log('🖥️ UI: Table displayed, rows:', filteredTableData.length);
+	}
+
+	// Parse logs into structured table format
+	parseLogsForTable(logText) {
+		const lines = logText.split('\n');
+		const tableData = [];
+		let lineNumber = 0;
+		let currentTestCase = '';
+
+		lines.forEach(line => {
+			lineNumber++;
+			if (!line.trim()) return;
+
+			// Extract basic log information
+			const logInfo = this.extractLogInfo(line, lineNumber);
+			if (!logInfo) return;
+
+			// Track current test case
+			if (logInfo.type === 'testcase') {
+				currentTestCase = logInfo.content;
+			}
+
+			// Add test case context to all entries
+			logInfo.testCase = currentTestCase;
+			logInfo.originalLine = line;
+
+			tableData.push(logInfo);
+		});
+
+		return tableData;
+	}
+
+	// Extract structured information from a log line
+	extractLogInfo(line, lineNumber) {
+		// Extract timestamp
+		const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/);
+		const timestamp = timestampMatch ? timestampMatch[1] : '';
+
+		// Extract log level
+		const levelMatch = line.match(/\[(INF|ERR|WAR|DEB)\]/);
+		const level = levelMatch ? levelMatch[1] : '';
+
+		// Extract component
+		const componentMatch = line.match(/\[([^\]]+)\](?:\s*\[[^\]]*\])*\s*(.*)$/);
+		const component = componentMatch ? componentMatch[1] : '';
+
+		// Get the main content after prefixes
+		let content = line.replace(/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^[]*(?:\[[^\]]*\])*\s*/, '').trim();
+
+		// Determine the type and extract relevant information
+		let type = 'message';
+		let operation = '';
+		let status = '';
+		let variable = '';
+		let value = '';
+		let jsonBody = '';
+		let indentLevel = this.getIndentLevel(line);
+
+		// Test Case detection
+		const testCaseMatch = content.match(/Starting TestCase\s*['"]([^'"]+)['"]/);
+		if (testCaseMatch) {
+			type = 'testcase';
+			operation = testCaseMatch[1];
+			content = `Starting: ${testCaseMatch[1]}`;
+		}
+		// Operation with status
+		else if (content.match(/^\[(Succeeded|Failed)\]/)) {
+			const operationMatch = content.match(/^\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+			if (operationMatch) {
+				type = 'operation';
+				status = operationMatch[1];
+				operation = operationMatch[2];
+				content = operation;
+			}
+		}
+		// Buffer variable (handle Message: prefix)
+		else if (content.includes('Buffer with name')) {
+			const bufferMatch = content.match(/(?:Message:\s*)?Buffer with name[:\s]*['"]([^'"]*)['"]\s*has been set to value[:\s]*['"]([^'"]*)['"]/i);
+			if (bufferMatch) {
+				type = 'variable';
+				variable = bufferMatch[1];
+				value = bufferMatch[2];
+				operation = `Set Buffer: ${variable}`;
+
+				// Check if value is JSON
+				if (this.isValidJSON(value)) {
+					jsonBody = value;
+				}
+			}
+		}
+		// Message content
+		else if (content.includes('Message:')) {
+			const messageContent = content.replace(/.*Message:\s*/, '');
+			type = 'message';
+			content = messageContent;
+			operation = messageContent;
+		}
+		// Duration entries
+		else if (content.match(/\[DURATION:/)) {
+			const durationMatch = content.match(/\[DURATION:\s*([^\]]+)\]/);
+			if (durationMatch) {
+				type = 'duration';
+				operation = `Duration: ${durationMatch[1]}`;
+				content = `Execution time: ${durationMatch[1]}`;
+			}
+		}
+
+		// Clean up operation name for display
+		if (!operation && content) {
+			operation = content.length > 60 ? content.substring(0, 60) + '...' : content;
+		}
+
+		return {
+			lineNumber,
+			timestamp,
+			level,
+			component,
+			type,
+			operation,
+			status,
+			variable,
+			value,
+			jsonBody,
+			indentLevel: Math.floor(indentLevel / 4), // Convert to levels
+			content,
+			testCase: ''
+		};
+	}
+
+	// Check if table row matches search term
+	matchesTableSearch(row, searchTerm) {
+		const searchableFields = [
+			row.operation,
+			row.variable,
+			row.value,
+			row.testCase,
+			row.content,
+			row.level,
+			row.status
+		];
+
+		return searchableFields.some(field =>
+			field && field.toString().toLowerCase().includes(searchTerm)
+		);
+	}
+
+	// Generate HTML for the table
+	generateTableHTML(tableData) {
+		if (tableData.length === 0) {
+			return '<div class="table-view">No matching log entries found</div>';
+		}
+
+		// Extract test case name if available
+		const testCaseRow = tableData.find(row => row.type === 'testcase');
+		const testCaseName = testCaseRow ? testCaseRow.operation : '';
+
+		let html = '<div class="table-view-content">';
+
+		// Add test case header
+		if (testCaseName) {
+			html += `
+				<div class="test-case-header">
+					<h3>Test Case: ${this.escapeHtml(testCaseName)}</h3>
+				</div>
+			`;
+		}
+
+		// Create the table
+		html += `
+			<table class="log-table">
+				<thead>
+					<tr>
+						<th style="width: 50px;">Line</th>
+						<th style="width: 80px;">Time</th>
+						<th style="width: 40px;">Level</th>
+						<th style="width: 60px;">Status</th>
+						<th style="width: 300px;">Operation/Message</th>
+						<th style="width: 120px;">Variable</th>
+						<th style="width: 200px;">Value</th>
+						<th style="width: 60px;">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+		`;
+
+		// Generate table rows
+		tableData.forEach((row, index) => {
+			html += this.generateTableRow(row, index);
+		});
+
+		html += `
+				</tbody>
+			</table>
+		</div>`;
+
+		return html;
+	}
+
+	// Generate individual table row
+	generateTableRow(row, index) {
+		const levelClass = `level-${Math.min(row.indentLevel, 4)}`;
+		const rowTypeClass = `table-row-${row.type}`;
+
+		// Format timestamp
+		const timeDisplay = row.timestamp ?
+			new Date(row.timestamp).toLocaleTimeString([], { hour12: false }) : '';
+
+		// Format log level
+		const levelDisplay = row.level ?
+			`<span class="table-type table-type-${row.level.toLowerCase()}">${row.level}</span>` : '';
+
+		// Format status
+		const statusDisplay = row.status ?
+			`<span class="table-status table-status-${row.status.toLowerCase()}">${row.status}</span>` : '';
+
+		// Format operation with indentation
+		const operationDisplay = `<span class="${levelClass}">${this.escapeHtml(row.operation || row.content)}</span>`;
+
+		// Format variable
+		const variableDisplay = row.variable ? this.escapeHtml(row.variable) : '';
+
+		// Format value with JSON handling
+		let valueDisplay = '';
+		let actionButtons = '';
+
+		if (row.jsonBody) {
+			// JSON value with expand/collapse
+			const jsonId = `json-${index}`;
+			const preview = row.value.length > 50 ? row.value.substring(0, 50) + '...' : row.value;
+
+			valueDisplay = `
+				<div class="json-table-container">
+					<div class="json-preview-line" onclick="toggleTableJson('${jsonId}')">
+						<span class="json-indicator">📄</span>
+						<code>${this.escapeHtml(preview)}</code>
+						<span class="json-toggle" id="${jsonId}-toggle">▶</span>
+					</div>
+					<div class="json-expanded-content" id="${jsonId}" style="display: none;">
+						<pre class="json-formatted-table">${this.formatJSONWithHighlighting(row.jsonBody)}</pre>
+					</div>
+				</div>
+			`;
+
+			actionButtons = `
+				<button onclick="window.app.copyForPostman('${this.escapeForJS(row.jsonBody)}')" class="table-btn table-btn-postman" title="Copy for Postman">🚀</button>
+				<button onclick="window.app.copyToClipboard('${this.escapeForJS(row.jsonBody)}')" class="table-btn table-btn-copy" title="Copy JSON">📋</button>
+			`;
+		} else if (row.value) {
+			// Regular value
+			const displayValue = row.value.length > 60 ? row.value.substring(0, 60) + '...' : row.value;
+			valueDisplay = `<code class="table-value-code">${this.escapeHtml(displayValue)}</code>`;
+
+			if (row.value.length > 60) {
+				actionButtons = `
+					<button onclick="window.app.showFullValue('${this.escapeForJS(row.value)}', '${this.escapeForJS(row.variable || 'Value')}', ${row.lineNumber})" class="table-btn table-btn-view" title="View Full">👁️</button>
+					<button onclick="window.app.copyToClipboard('${this.escapeForJS(row.value)}')" class="table-btn table-btn-copy" title="Copy Value">📋</button>
+				`;
+			} else {
+				actionButtons = `
+					<button onclick="window.app.copyToClipboard('${this.escapeForJS(row.value)}')" class="table-btn table-btn-copy" title="Copy Value">📋</button>
+				`;
+			}
+		}
+
+		return `
+			<tr class="${rowTypeClass}" data-level="${row.indentLevel}" data-line="${row.lineNumber}">
+				<td class="table-line-number">${row.lineNumber}</td>
+				<td class="table-timestamp">${timeDisplay}</td>
+				<td class="table-level">${levelDisplay}</td>
+				<td class="table-status-column">${statusDisplay}</td>
+				<td class="table-operation ${levelClass}">${operationDisplay}</td>
+				<td class="table-variable">${variableDisplay}</td>
+				<td class="table-value-cell">${valueDisplay}</td>
+				<td class="table-actions">${actionButtons}</td>
+			</tr>
+		`;
+	}
+
+	// Check if string is valid JSON
+	isValidJSON(str) {
+		try {
+			JSON.parse(str);
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	// Get indentation level from line
+	getIndentLevel(line) {
+		const match = line.match(/^(\s*)/);
+		return match ? match[1].length : 0;
 	}
 
 	// Utility functions
