@@ -122,4 +122,4 @@ config/secrets.json
 */notes.md
 
 # Archive
-bookmarklet/archive/*
+archive/*
