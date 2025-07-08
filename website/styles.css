@@ -1336,10 +1336,26 @@ body {
 }
 
 .test-case-header h3 {
-	margin: 0;
+	margin: 0 0 5px 0;
 	color: #155724;
 	font-size: 16px;
 	font-weight: 600;
+}
+
+.test-case-meta {
+	display: flex;
+	gap: 15px;
+	align-items: center;
+	font-size: 12px;
+	color: #666;
+}
+
+.log-count {
+	background: #28a745;
+	color: white;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 11px;
 }
 
 /* Status column styling */

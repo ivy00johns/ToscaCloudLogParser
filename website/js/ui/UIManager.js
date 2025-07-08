@@ -817,38 +817,51 @@ class UIManager {
 
 		let html = '<div class="table-view-content">';
 
-		// Create the table with header
-		html += `
-			<table class="log-table">
-				<thead>
-					<tr>
-						<th style="width: 80px;">Line</th>
-						<th style="width: 120px;">Time</th>
-						<th style="width: 60px;">Level</th>
-						<th>Operation/Message</th>
-						<th style="width: 150px;">Variable</th>
-						<th>Value</th>
-						<th style="width: 60px;">Type</th>
-						<th style="width: 80px;">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-		`;
-
-		// Render groups hierarchically
+		// Render each test case as a separate section
 		hierarchicalGroups.forEach(group => {
-			html += this.renderTableGroup(group, searchTerm, 0);
+			if (group.type === 'testcase') {
+				// Create test case header
+				html += `
+					<div class="test-case-header">
+						<h3>📋 Test Case: ${this.escapeHtml(group.name)}</h3>
+						<div class="test-case-meta">
+							<span class="timestamp">${this.formatTimestamp(group.timestamp)}</span>
+							<span class="log-count">${this.countTotalLogs(group)} log entries</span>
+						</div>
+					</div>
+				`;
+
+				// Create table for this test case's logs
+				html += `
+					<table class="log-table">
+						<thead>
+							<tr>
+								<th style="width: 80px;">Line</th>
+								<th style="width: 120px;">Time</th>
+								<th style="width: 60px;">Level</th>
+								<th>Operation/Message</th>
+								<th style="width: 150px;">Variable</th>
+								<th>Value</th>
+								<th style="width: 60px;">Type</th>
+								<th style="width: 80px;">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+				`;
+
+				// Render all logs for this test case
+				html += this.renderTestCaseLogs(group, searchTerm, 0);
+
+				html += `
+						</tbody>
+					</table>
+				`;
+			}
 		});
 
-		html += `
-				</tbody>
-			</table>
-		</div>`;
-
+		html += '</div>';
 		container.innerHTML = html;
 
-		// Setup click handlers
-		this.setupTableGroupToggles();
 		console.log('🖥️ UI: Hierarchical table displayed, groups:', hierarchicalGroups.length);
 	}
 
@@ -879,6 +892,147 @@ class UIManager {
 
 	escapeForJS(str) {
 		return JSON.stringify(str).slice(1, -1);
+	}
+
+	// Render all logs for a test case (flattened structure)
+	renderTestCaseLogs(group, searchTerm = '', level = 0) {
+		let html = '';
+		
+		// Render all lines from this group
+		group.lines?.forEach(logLine => {
+			html += this.renderLogTableRow(logLine, searchTerm, level);
+		});
+
+		// Recursively render sub-groups
+		group.subGroups?.forEach(subGroup => {
+			html += this.renderTestCaseLogs(subGroup, searchTerm, level + 1);
+		});
+
+		return html;
+	}
+
+	// Count total logs in a test case group
+	countTotalLogs(group) {
+		let count = group.lines?.length || 0;
+		
+		group.subGroups?.forEach(subGroup => {
+			count += this.countTotalLogs(subGroup);
+		});
+		
+		return count;
+	}
+
+	// Render individual log table row
+	renderLogTableRow(logInfo, searchTerm = '', level = 0) {
+		const rowClass = `table-row-${logInfo.type || 'message'} level-${level}`;
+		
+		// Apply search filter
+		if (searchTerm && !this.matchesTableSearch(logInfo, searchTerm.toLowerCase())) {
+			return '';
+		}
+
+		let actionButtons = '';
+		if (logInfo.variable && logInfo.value) {
+			if (logInfo.jsonBody) {
+				actionButtons = `
+					<button class="table-btn table-btn-postman" onclick="window.app.copyForPostman('${this.escapeForJS(logInfo.value)}')" title="Copy for Postman">🚀</button>
+					<button class="table-btn table-btn-copy" onclick="window.app.copyToClipboard('${this.escapeForJS(logInfo.value)}')" title="Copy">📋</button>
+				`;
+			} else {
+				actionButtons = `
+					<button class="table-btn table-btn-copy" onclick="window.app.copyToClipboard('${this.escapeForJS(logInfo.value)}')" title="Copy">📋</button>
+				`;
+			}
+		}
+
+		let valueDisplay = '';
+		if (logInfo.value) {
+			if (logInfo.jsonBody) {
+				const jsonId = `json-${logInfo.lineNumber}`;
+				valueDisplay = `
+					<div class="json-table-container">
+						<div class="json-preview-line" onclick="toggleTableJson('${jsonId}')">
+							<span class="json-indicator">📋</span>
+							<code>${this.escapeHtml(logInfo.value.substring(0, 50))}${logInfo.value.length > 50 ? '...' : ''}</code>
+							<span id="${jsonId}-toggle" class="json-toggle">▶</span>
+						</div>
+						<div id="${jsonId}" class="json-expanded-content" style="display: none;">
+							<pre class="json-formatted-table">${this.formatJSONWithHighlighting(logInfo.value)}</pre>
+						</div>
+					</div>
+				`;
+			} else {
+				valueDisplay = `<span class="table-value-code">${this.escapeHtml(logInfo.value.length > 100 ? logInfo.value.substring(0, 100) + '...' : logInfo.value)}</span>`;
+			}
+		}
+
+		const typeDisplay = logInfo.variable ? this.getVariableTypeBadge(logInfo.value) : '';
+
+		return `<tr class="${rowClass}">
+			<td class="table-line-number">${logInfo.lineNumber}</td>
+			<td class="table-timestamp">${this.formatTimestamp(logInfo.timestamp)}</td>
+			<td class="table-type-badge">
+				<span class="table-type table-type-${logInfo.level?.toLowerCase() || 'inf'}">${logInfo.level || 'INF'}</span>
+			</td>
+			<td class="table-operation">${this.escapeHtml(logInfo.operation || logInfo.content || '')}</td>
+			<td class="table-variable">${this.escapeHtml(logInfo.variable || '')}</td>
+			<td class="table-value">${valueDisplay}</td>
+			<td class="table-type-badge">${typeDisplay}</td>
+			<td class="table-actions">${actionButtons}</td>
+		</tr>`;
+	}
+
+	// Get variable type badge for table display
+	getVariableTypeBadge(value) {
+		const type = this.detectVariableType(value);
+		const typeClass = this.getTypeClass(type);
+		const typeLabel = this.getTypeLabel(type);
+		return `<span class="type-badge ${typeClass}">${typeLabel}</span>`;
+	}
+
+	// Detect variable type (simplified version)
+	detectVariableType(value) {
+		if (!value || typeof value !== 'string') return 'Buffer Variable';
+		
+		if (this.isValidJSON(value)) return 'JSON';
+		if (value.match(/^https?:\/\//)) return 'URL';
+		if (value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return 'ID';
+		if (value.match(/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}/)) return 'Timestamp';
+		if (value.startsWith('ey') && value.length > 50) return 'Token';
+		
+		return 'Buffer Variable';
+	}
+
+	// Format timestamp for display
+	formatTimestamp(timestamp) {
+		if (!timestamp) return '';
+		try {
+			return new Date(timestamp).toLocaleTimeString();
+		} catch {
+			return timestamp;
+		}
+	}
+
+	// Setup table functionality (simplified - no groups to toggle)
+	setupTableGroupToggles() {
+		// Table view doesn't need group toggles - it shows all logs in flat structure
+		// This method is kept for compatibility but doesn't do anything
+	}
+
+	// Check if log info matches search term for table view
+	matchesTableSearch(logInfo, searchTerm) {
+		const searchableFields = [
+			logInfo.operation,
+			logInfo.variable,
+			logInfo.value,
+			logInfo.content,
+			logInfo.level,
+			logInfo.component
+		];
+
+		return searchableFields.some(field =>
+			field && field.toString().toLowerCase().includes(searchTerm)
+		);
 	}
 }
 

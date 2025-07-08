@@ -405,16 +405,69 @@ class DataManager {
 			};
 		}
 
+		// Extract the main content after log prefixes
+		let content = line.replace(/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}[^[]*(?:\[[^\]]*\])*\s*/, '').trim();
+		
+		// Check for buffer variables
+		let variable = '';
+		let value = '';
+		let jsonBody = '';
+		let type = 'message';
+		
+		const bufferMatch = content.match(/(?:Message:\s*)?Buffer with name[:\s]*['"]([^'"]*)['"]\s*has been set to value[:\s]*['"]([^'"]*)['"]?/i);
+		if (bufferMatch) {
+			type = 'variable';
+			variable = bufferMatch[1];
+			value = bufferMatch[2];
+			content = `Set Buffer: ${variable}`;
+			
+			// Check if value is JSON
+			if (this.isValidJSON(value)) {
+				jsonBody = value;
+			}
+		}
+		// Check for operation with status
+		else if (content.match(/^\[(Succeeded|Failed)\]/)) {
+			const operationMatch = content.match(/^\[(Succeeded|Failed)\]\s*['"]([^'"]+)['"]/);
+			if (operationMatch) {
+				type = 'operation';
+				content = operationMatch[2];
+			}
+		}
+		// Message content
+		else if (content.includes('Message:')) {
+			const messageContent = content.replace(/.*Message:\s*/, '');
+			content = messageContent;
+		}
+
 		// Regular log line
 		return {
 			lineNumber,
 			timestamp,
 			level,
 			originalLine: line,
+			content,
+			operation: content,
+			variable,
+			value,
+			jsonBody,
+			type,
 			indentLevel,
 			isTestCaseStart: false,
 			isOperation: false
 		};
+	}
+
+	// Check if string is valid JSON
+	isValidJSON(str) {
+		if (!str || typeof str !== 'string') return false;
+		if (!str.trim().startsWith('{') && !str.trim().startsWith('[')) return false;
+		try {
+			JSON.parse(str);
+			return true;
+		} catch (e) {
+			return false;
+		}
 	}
 
 	// Estimate data size
