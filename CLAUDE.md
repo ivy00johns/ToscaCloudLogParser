@@ -8,7 +8,7 @@ This is a comprehensive JavaScript project for parsing Tosca Cloud execution log
 
 ## Project Structure
 
-```
+```yml
 ToscaCloudLogParserWebsite/
 ├── website/                    # 🌐 Standalone Website Application (MAIN)
 │   ├── index.html             # Primary web interface - CLEAN VERSION
@@ -175,7 +175,7 @@ node encode-bookmarklet.js simple-log-copier.js simple-log-copier.bookmarklet.js
 
 The parser expects Tosca Cloud logs in this format:
 
-```
+```bash
 YYYY-MM-DD HH:MM:SSZ [INF][TBox] [Status] "Test Name" [DURATION: HH:MM:SS.microseconds]
     Message: Buffer with name: "variable_name" has been set to value: "variable_value"
 ```
@@ -190,7 +190,7 @@ YYYY-MM-DD HH:MM:SSZ [INF][TBox] [Status] "Test Name" [DURATION: HH:MM:SS.micros
 
 ### Supported Variable Patterns
 
-```
+```md
 # Buffer Variables (primary)
 Buffer with name: "variable_name" has been set to value: "value"
 Buffer with name 'variable_name' has been set to value 'value'
@@ -222,21 +222,21 @@ eyJraWQiOiJEZk5KSGRPVE1KekJhR0hmdWtnclpaMzY3WXM1...
 2. Export variables for API testing in Postman
 3. Utilize JSON highlighting for complex payload analysis
 
-# 🎯 Current Project Status (Clean Rebuild Complete)
+## 🎯 Current Project Status (Clean Rebuild Complete)
 
 ## ✅ **Major Cleanup & Rebuild Completed**
 
 **Project fully rebuilt from scratch with clean architecture:**
 
 1. **✅ Complete Code Reorganization** - All old code archived in `archive/`
-2. **✅ Single-File Web Interface** - Clean, modern `website/index.html` 
+2. **✅ Single-File Web Interface** - Clean, modern `website/index.html`
 3. **✅ Modular Architecture** - Enhanced ES6 modules with 6 variable types
 4. **✅ Working Bookmarklet System** - Automated build pipeline
 5. **✅ Updated Documentation** - README.md and CLAUDE.md refreshed
 
 ## 🔧 **Current Enhanced Architecture**
 
-```
+```yml
 website/
 ├── index.html              # 🌟 PRIMARY: Clean HTML structure (104 lines)
 ├── styles.css              # 🎨 Separated CSS styles (1600+ lines)
@@ -255,6 +255,7 @@ website/
 ## 🎨 **Enhanced Features (Latest Integration)**
 
 ### **🌟 Advanced Modular Web Interface** (`index.html`)
+
 - **Variables View**: ✅ 33+ variables parsed with intelligent grouping
 - **Logs View**: ✅ Advanced syntax highlighting with VS Code-style theming
 - **Table View**: ✅ Hierarchical structured display with collapsible groups
@@ -265,6 +266,7 @@ website/
 - **Memory Management**: ✅ Batch processing for 1MB+ log files
 
 ### **🔧 Modular Architecture Benefits**
+
 - **Separation of Concerns**: Dedicated modules for parsing, UI, and data management
 - **Enhanced Error Handling**: Comprehensive error reporting with toast notifications
 - **Debug Mode**: Built-in debugging with console helpers (`window.debugApp()`)
@@ -273,6 +275,7 @@ website/
 ## 📊 **Parser Performance**
 
 Successfully tested with `debug/simple-example-logs.txt`:
+
 - **16 variables** extracted from 274 log lines
 - **6 variable types** detected (JSON, Token, URL, ID, Timestamp, String)
 - **1 test case** identified and grouped
@@ -305,6 +308,7 @@ window.copyDebug()    # Copy debug info to clipboard
 ## 🎯 **Ready for Enhancements**
 
 The foundation is solid and ready for improvements like:
+
 - Enhanced JSON parsing for complex multi-line values
 - Better variable type detection
 - Additional export formats
@@ -313,7 +317,8 @@ The foundation is solid and ready for improvements like:
 
 ---
 **Status**: ✅ **ENHANCED INTEGRATION COMPLETE** - Advanced modular architecture integrated
-**Architecture**: 
+**Architecture**:
+
 - 🌟 **Enhanced**: Modular architecture with advanced UI (`index-enhanced.html`)
-- 📦 **Legacy**: Single-file web app (`index.html`) 
+- 📦 **Legacy**: Single-file web app (`index.html`)
 - 🔧 **Build**: Automated bookmarklet build system
