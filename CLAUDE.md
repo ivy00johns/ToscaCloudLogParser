@@ -147,7 +147,8 @@ node encode-bookmarklet.js simple-log-copier.js simple-log-copier.bookmarklet.js
 
 ### Website Files
 
-- `website/index.html` - Enhanced modular web application interface
+- `website/index.html` - Clean HTML structure (104 lines)
+- `website/styles.css` - Separated CSS styles (1600+ lines)
 - `website/js/` - Modular ES6 architecture components:
   - `ToscaLogParserApp.js` - Main application coordinator
   - `core/LogParser.js` - Core parsing engine
@@ -237,7 +238,8 @@ eyJraWQiOiJEZk5KSGRPVE1KekJhR0hmdWtnclpaMzY3WXM1...
 
 ```
 website/
-├── index.html              # 🌟 PRIMARY: Enhanced modular web application
+├── index.html              # 🌟 PRIMARY: Clean HTML structure (104 lines)
+├── styles.css              # 🎨 Separated CSS styles (1600+ lines)
 ├── index-legacy.html       # Legacy single-file interface (archived)
 ├── js/                     # 🌟 Modular JavaScript Architecture (ES6 modules)
 │   ├── ToscaLogParserApp.js     # Main application coordinator (529 lines)
