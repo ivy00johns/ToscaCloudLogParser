@@ -6,14 +6,18 @@ The project has been reorganized and cleaned up. All old/experimental code has b
 
 ## 📁 Current Clean Structure
 
-```
+```yml
 ToscaCloudLogParserWebsite/
 ├── README.md                   # Main documentation
 ├── CLAUDE.md                   # AI assistant instructions
 ├── PROJECT-STATUS.md           # This status file
 ├── website/                    # Web Interface (MAIN)
 │   ├── index.html             # Primary web interface
-│   ├── parser.js              # Core parsing engine
+│   ├── js/                    # Modular ES6 architecture
+│   │   ├── ToscaLogParserApp.js   # Main coordinator
+│   │   ├── core/LogParser.js      # Core parsing logic
+│   │   ├── ui/UIManager.js        # UI management
+│   │   └── data/DataManager.js    # Data processing
 │   └── archive-old-index.html # Backup of old version
 ├── bookmarklet/               # Bookmarklet Tools
 │   ├── simple-log-copier.js   # Source bookmarklet code
@@ -47,14 +51,19 @@ The project is now clean and ready for improvements:
    - Automated build system with npm scripts
    - Test page for easy installation
 
-3. **Core Parser**: `website/parser.js`
-   - Clean, modular design
-   - Tested with sample logs (16 variables extracted successfully)
+3. **Modular Architecture**: `website/js/`
+   - ES6 module-based design with separation of concerns
+   - ToscaLogParserApp.js (main coordinator)
+   - LogParser.js (core parsing logic)
+   - UIManager.js (interface management)
+   - DataManager.js (data processing)
+   - Tested with sample logs (33+ variables extracted successfully)
    - Supports JSON, Token, URL, ID, Timestamp, String types
 
 ## 🎯 Next Steps for Improvement
 
 The foundation is solid. You can now focus on enhancements like:
+
 - Enhanced JSON handling for multi-line values
 - Better variable type detection
 - Additional export formats

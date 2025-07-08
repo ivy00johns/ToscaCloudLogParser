@@ -12,7 +12,11 @@ This is a comprehensive JavaScript project for parsing Tosca Cloud execution log
 ToscaCloudLogParserWebsite/
 ├── website/                    # 🌐 Standalone Website Application (MAIN)
 │   ├── index.html             # Primary web interface - CLEAN VERSION
-│   ├── parser.js              # Core log parsing engine (v3)
+│   ├── js/                    # Modular ES6 architecture
+│   │   ├── ToscaLogParserApp.js   # Main coordinator
+│   │   ├── core/LogParser.js      # Core parsing logic
+│   │   ├── ui/UIManager.js        # UI management
+│   │   └── data/DataManager.js    # Data processing
 │   └── archive-old-index.html # Previous version (archived)
 ├── bookmarklet/               # 📖 Browser Bookmarklet Tools
 │   ├── simple-log-copier.js   # ✅ CURRENT: Quick log extraction
@@ -38,8 +42,12 @@ ToscaCloudLogParserWebsite/
 
 ### Website Application (Primary Interface)
 
-- **Main Parser**: `website/parser.js` - Clean, modular log parser with enhanced features
-- **Web Interface**: `website/index.html` - Modern single-file web application with:
+- **Modular Architecture**: Enhanced ES6 module-based system:
+  - `website/js/ToscaLogParserApp.js` - Main application coordinator
+  - `website/js/core/LogParser.js` - Core parsing engine
+  - `website/js/ui/UIManager.js` - User interface management
+  - `website/js/data/DataManager.js` - Data processing and grouping
+- **Web Interface**: `website/index.html` - Modern modular web application with:
   - Multiple input methods (paste, file upload, drag & drop)
   - Four view modes (Variables, Logs, Table, Bookmarklet)
   - Real-time search and filtering
@@ -139,8 +147,13 @@ node encode-bookmarklet.js simple-log-copier.js simple-log-copier.bookmarklet.js
 
 ### Website Files
 
-- `website/index.html` - Main web application interface
-- `website/parser.js` - Core parsing engine (current version)
+- `website/index.html` - Enhanced modular web application interface
+- `website/js/` - Modular ES6 architecture components:
+  - `ToscaLogParserApp.js` - Main application coordinator
+  - `core/LogParser.js` - Core parsing engine
+  - `ui/UIManager.js` - UI management and rendering
+  - `data/DataManager.js` - Data processing and grouping
+- `website/index-legacy.html` - Legacy single-file interface (archived)
 - `website/*.txt` - Sample log files for testing
 
 ### Bookmarklet Files
@@ -216,28 +229,44 @@ eyJraWQiOiJEZk5KSGRPVE1KekJhR0hmdWtnclpaMzY3WXM1...
 
 1. **✅ Complete Code Reorganization** - All old code archived in `archive/`
 2. **✅ Single-File Web Interface** - Clean, modern `website/index.html` 
-3. **✅ Modular Parser** - New `website/parser.js` with 6 variable types
+3. **✅ Modular Architecture** - Enhanced ES6 modules with 6 variable types
 4. **✅ Working Bookmarklet System** - Automated build pipeline
 5. **✅ Updated Documentation** - README.md and CLAUDE.md refreshed
 
-## 🔧 **Current Clean Architecture**
+## 🔧 **Current Enhanced Architecture**
 
 ```
 website/
-├── index.html              # Single-file web app (clean rebuild)
-├── parser.js               # Modular parser class
-└── archive-old-index.html  # Previous version (archived)
+├── index.html              # 🌟 PRIMARY: Enhanced modular web application
+├── index-legacy.html       # Legacy single-file interface (archived)
+├── js/                     # 🌟 Modular JavaScript Architecture (ES6 modules)
+│   ├── ToscaLogParserApp.js     # Main application coordinator (529 lines)
+│   ├── core/
+│   │   └── LogParser.js         # Core parsing logic (283 lines)
+│   ├── ui/
+│   │   └── UIManager.js         # UI management & rendering (800+ lines)
+│   └── data/
+│       └── DataManager.js       # Data processing & grouping (432 lines)
+└── README.md               # Enhanced documentation
 ```
 
-## 🎨 **Fully Working Features**
+## 🎨 **Enhanced Features (Latest Integration)**
 
-- **Variables View**: ✅ 16 variables parsed from sample logs
-- **Logs View**: ✅ Syntax highlighting, search, line numbers
-- **Table View**: ✅ Structured data display
-- **Bookmarklet View**: ✅ Working bookmarklet generation
-- **Search**: ✅ Real-time filtering across all views
-- **Export**: ✅ JSON download functionality
-- **File Upload**: ✅ Drag & drop support
+### **🌟 Advanced Modular Web Interface** (`index.html`)
+- **Variables View**: ✅ 33+ variables parsed with intelligent grouping
+- **Logs View**: ✅ Advanced syntax highlighting with VS Code-style theming
+- **Table View**: ✅ Hierarchical structured display with collapsible groups
+- **Search**: ✅ Real-time filtering across all views with multi-line JSON support
+- **Export**: ✅ JSON download with comprehensive metadata
+- **File Upload**: ✅ Drag & drop support with progress tracking
+- **Performance**: ✅ Optimized for large datasets with virtual scrolling
+- **Memory Management**: ✅ Batch processing for 1MB+ log files
+
+### **🔧 Modular Architecture Benefits**
+- **Separation of Concerns**: Dedicated modules for parsing, UI, and data management
+- **Enhanced Error Handling**: Comprehensive error reporting with toast notifications
+- **Debug Mode**: Built-in debugging with console helpers (`window.debugApp()`)
+- **Extensibility**: Easy to add new variable types and UI features
 
 ## 📊 **Parser Performance**
 
@@ -250,15 +279,20 @@ Successfully tested with `debug/simple-example-logs.txt`:
 ## 🚀 **Development Commands**
 
 ```bash
-# Start web interface
+# 🌟 Enhanced Modular Interface (PRIMARY)
 open website/index.html
+
+# Legacy Single-File Interface
+open website/index-legacy.html
 
 # Build bookmarklets
 cd bookmarklet
 npm run build
 
-# Test parser (if needed)
-node archive/test-parser.js
+# Debug modular architecture
+# In browser console:
+window.debugApp()     # Show app state
+window.copyDebug()    # Copy debug info to clipboard
 ```
 
 ## 📝 **Current Test Data**
@@ -276,5 +310,8 @@ The foundation is solid and ready for improvements like:
 - Performance optimizations
 
 ---
-**Status**: ✅ **COMPLETE CLEAN REBUILD** - Ready for feature development
-**Architecture**: Single-file web app + modular parser + automated bookmarklet build
+**Status**: ✅ **ENHANCED INTEGRATION COMPLETE** - Advanced modular architecture integrated
+**Architecture**: 
+- 🌟 **Enhanced**: Modular architecture with advanced UI (`index-enhanced.html`)
+- 📦 **Legacy**: Single-file web app (`index.html`) 
+- 🔧 **Build**: Automated bookmarklet build system

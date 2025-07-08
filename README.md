@@ -5,12 +5,14 @@ A comprehensive tool for parsing Tosca Cloud execution logs and extracting buffe
 ## 🚀 Quick Start
 
 ### Web Interface
+
 1. Open `website/index.html` in your browser
 2. Paste your Tosca Cloud logs into the text area
 3. Click "Parse Logs" to extract variables
 4. Use the tabs to switch between Variables, Logs, Table, and Bookmarklet views
 
 ### Bookmarklet
+
 1. Open `bookmarklet/dist/test.html` in your browser
 2. Drag the "Tosca Log Copier" link to your bookmarks bar
 3. Navigate to a Tosca Cloud page with logs
@@ -18,11 +20,15 @@ A comprehensive tool for parsing Tosca Cloud execution logs and extracting buffe
 
 ## 📁 Project Structure
 
-```
+```yml
 ToscaCloudLogParserWebsite/
 ├── website/                    # 🌐 Web Interface (MAIN)
 │   ├── index.html             # Primary web interface
-│   ├── parser.js              # Core parsing engine
+│   ├── js/                    # Modular ES6 architecture
+│   │   ├── ToscaLogParserApp.js   # Main coordinator
+│   │   ├── core/LogParser.js      # Core parsing logic
+│   │   ├── ui/UIManager.js        # UI management
+│   │   └── data/DataManager.js    # Data processing
 │   └── archive-old-index.html # Previous version (archived)
 ├── bookmarklet/               # 📖 Bookmarklet Tools
 │   ├── simple-log-copier.js   # Source code for bookmarklet
@@ -47,6 +53,7 @@ ToscaCloudLogParserWebsite/
 ## 🛠️ Development
 
 ### Building Bookmarklets
+
 ```bash
 cd bookmarklet
 npm run build      # Build all bookmarklets
@@ -55,6 +62,7 @@ npm run clean      # Clean build directories
 ```
 
 ### Testing the Parser
+
 ```bash
 # Test files are in archive/ - copy them out if needed
 node archive/test-parser.js
@@ -63,6 +71,7 @@ node archive/test-parser.js
 ## 📋 Features
 
 ### Web Interface
+
 - **4 View Modes**: Variables, Logs, Table, and Bookmarklet tabs
 - **Smart Variable Detection**: Automatically categorizes variables as JSON, Token, URL, ID, Timestamp, or String
 - **Real-time Search**: Search across all views and data
@@ -73,6 +82,7 @@ node archive/test-parser.js
 - **Modern UI**: Clean, responsive design with notifications
 
 ### Bookmarklet
+
 - **One-Click Extraction**: Extract logs from Tosca Cloud pages instantly
 - **Smart Detection**: Automatically finds log containers on the page
 - **Clipboard Copy**: Copies logs directly to clipboard
@@ -81,13 +91,15 @@ node archive/test-parser.js
 ## 📝 Log Format
 
 The parser expects Tosca Cloud logs in this format:
-```
+
+```bash
 2025-06-19 16:53:51Z [INF][TBox] Message: Buffer with name: "variable_name" has been set to value: "value"
 ```
 
 ## 🔧 Variable Types
 
 The parser automatically detects and categorizes variables:
+
 - **JSON**: Structured JSON objects/arrays
 - **Token**: Access tokens and authentication credentials
 - **URL**: HTTP/HTTPS URLs
@@ -98,13 +110,14 @@ The parser automatically detects and categorizes variables:
 ## 🧪 Sample Data
 
 Test the parser with the included sample logs:
+
 - `debug/simple-example-logs.txt` - Basic Tosca Cloud logs with 16 variables
 - `debug/advanced-example-logs.txt` - More complex log examples
 
 ## 🎯 Recent Improvements
 
 - **Clean Architecture**: Rebuilt from scratch with modular design
-- **Archive System**: All old code safely preserved in `archive/` 
+- **Archive System**: All old code safely preserved in `archive/`
 - **Build System**: Automated bookmarklet generation with npm scripts
 - **Modern UI**: Responsive design with clean Material-inspired styling
 - **Enhanced Parser**: Improved variable detection and type classification
@@ -112,6 +125,7 @@ Test the parser with the included sample logs:
 ## 📊 Parser Stats
 
 Successfully tested with sample logs:
+
 - **16 variables** extracted from 274 log lines
 - **6 variable types** detected (JSON, Token, URL, ID, Timestamp, String)
 - **1 test case** identified and grouped

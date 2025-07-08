@@ -1,778 +1,1741 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tosca Cloud Log Parser</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Tosca Log Parser</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			line-height: 1.6;
+		}
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+		.container {
+			max-width: 1400px;
+			margin: 0 auto;
+			padding: 20px;
+		}
 
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
+		.header {
+			background: white;
+			padding: 15px 20px;
+			border-radius: 12px;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			margin-bottom: 15px;
+			display: flex;
+			align-items: center;
+		}
 
-        .header h1 {
-            color: #2c3e50;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+		.logo {
+			width: 28px;
+			height: 28px;
+			margin-right: 10px;
+			border-radius: 4px;
+			background: #2c3e50;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: white;
+			font-weight: bold;
+			font-size: 12px;
+		}
 
-        .logo {
-            width: 32px;
-            height: 32px;
-            background: #2c3e50;
-            color: white;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
+		.main-content {
+			background: white;
+			padding: 30px;
+			border-radius: 12px;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			display: flex;
+			flex-direction: column;
+			min-height: 80vh;
+		}
 
-        .main-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+		.input-section {
+			margin-bottom: 20px;
+		}
 
-        .input-section {
-            margin-bottom: 20px;
-        }
+		.input-tabs {
+			display: flex;
+			gap: 10px;
+			margin-bottom: 15px;
+		}
 
-        .input-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
+		.input-btn {
+			flex: 1;
+			padding: 10px;
+			background: #6c757d;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
 
-        #logInput {
-            width: 100%;
-            height: 200px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
-            resize: vertical;
-        }
+		.input-btn.active {
+			background: #667eea;
+		}
 
-        .button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
+		.input-btn:hover {
+			opacity: 0.9;
+		}
 
-        .button-primary {
-            background: #667eea;
-            color: white;
-        }
+		.input-mode {
+			display: none;
+		}
 
-        .button-primary:hover {
-            background: #5a67d8;
-        }
+		.input-mode.active {
+			display: block;
+		}
 
-        .button-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
+		#logInput {
+			width: 100%;
+			height: 120px;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			font-family: monospace;
+			font-size: 12px;
+			resize: vertical;
+		}
 
-        .button-secondary:hover {
-            background: #cbd5e0;
-        }
+		.screen-mode {
+			padding: 20px;
+			background: #f8f9fa;
+			border-radius: 4px;
+			text-align: center;
+		}
 
-        .button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+		.screen-mode p {
+			margin: 0 0 10px 0;
+			color: #666;
+		}
 
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e2e8f0;
-        }
+		.file-input {
+			width: 100%;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+		}
 
-        .tab-button {
-            padding: 10px 20px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: #718096;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: all 0.2s;
-        }
+		.parse-btn {
+			width: 100%;
+			padding: 12px;
+			background: #11998e;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-weight: bold;
+			margin-bottom: 20px;
+			transition: background 0.2s;
+		}
 
-        .tab-button:hover {
-            color: #4a5568;
-        }
+		.parse-btn:hover {
+			background: #0e8074;
+		}
 
-        .tab-button.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
+		.summary-section {
+			display: none;
+			margin-bottom: 20px;
+			padding: 15px;
+			background: #e8f5e8;
+			border-radius: 4px;
+		}
 
-        .view-container {
-            display: none;
-            min-height: 400px;
-        }
+		.summary-stats {
+			display: flex;
+			gap: 20px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
 
-        .view-container.active {
-            display: block;
-        }
+		.buffer-count {
+			font-weight: bold;
+			color: #28a745;
+		}
 
-        .content-area {
-            padding: 20px 0;
-        }
+		.filters-section {
+			display: none;
+			margin-bottom: 20px;
+			padding: 15px;
+			background: #f8f9fa;
+			border-radius: 4px;
+		}
 
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: #a0aec0;
-        }
+		.filters-content {
+			display: flex;
+			gap: 15px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
 
-        .variable-group {
-            margin-bottom: 30px;
-        }
+		.filter-label {
+			font-weight: 600;
+		}
 
-        .variable-group h3 {
-            color: #2d3748;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #e2e8f0;
-        }
+		.checkbox-label {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
 
-        .variables-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+		.search-input {
+			padding: 5px 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			width: 200px;
+			flex-shrink: 0;
+		}
 
-        .variables-table th {
-            text-align: left;
-            padding: 10px;
-            background: #f7fafc;
-            border-bottom: 1px solid #e2e8f0;
-            font-weight: 600;
-            color: #4a5568;
-            font-size: 13px;
-            text-transform: uppercase;
-        }
+		.results-section {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+		}
 
-        .variables-table td {
-            padding: 10px;
-            border-bottom: 1px solid #f7fafc;
-        }
+		.results-header {
+			display: none;
+			margin-bottom: 10px;
+			padding: 10px;
+			background: #e8f5e8;
+			border-radius: 4px;
+		}
 
-        .value-cell {
-            max-width: 400px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+		.results-count {
+			font-weight: bold;
+			color: #28a745;
+		}
 
-        .json-value {
-            background: #f7fafc;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            max-height: 200px;
-            overflow: auto;
-        }
+		.action-buttons {
+			margin-left: 15px;
+		}
 
-        .type-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+		.action-btn {
+			padding: 5px 10px;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 12px;
+			margin-left: 5px;
+		}
 
-        .type-json {
-            background: #d6f5d6;
-            color: #2d862d;
-        }
+		.btn-expand {
+			background: #ffc107;
+			color: #333;
+		}
 
-        .type-token {
-            background: #ffe5b4;
-            color: #cc7a00;
-        }
+		.btn-collapse {
+			background: #6c757d;
+			color: white;
+		}
 
-        .type-url {
-            background: #e6f3ff;
-            color: #0066cc;
-        }
+		.btn-copy {
+			background: #17a2b8;
+			color: white;
+		}
 
-        .type-id {
-            background: #f0e6ff;
-            color: #6b46c1;
-        }
+		.btn-export {
+			background: #6f42c1;
+			color: white;
+		}
 
-        .type-timestamp {
-            background: #ffeaa7;
-            color: #d68910;
-        }
+		.results-container {
+			flex: 1;
+			overflow-y: auto;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+		}
 
-        .type-string {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
+		.results-placeholder {
+			padding: 40px;
+			text-align: center;
+			color: #666;
+		}
 
-        .copy-btn {
-            padding: 4px 8px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
+		.results-placeholder p:first-child {
+			margin: 0;
+			font-size: 18px;
+		}
 
-        .copy-btn:hover {
-            background: #f7fafc;
-        }
+		.results-placeholder p:last-child {
+			margin: 10px 0 0 0;
+		}
 
-        .log-line {
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
-            padding: 2px 0;
-            display: flex;
-            gap: 10px;
-        }
+		.results-content {
+			display: none;
+			padding: 10px;
+		}
 
-        .line-number {
-            color: #a0aec0;
-            min-width: 50px;
-            text-align: right;
-        }
+		.group {
+			margin-bottom: 15px;
+			border: 1px solid #dee2e6;
+			border-radius: 5px;
+			background: white;
+		}
 
-        .log-content {
-            flex: 1;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
+		.group-header {
+			padding: 12px 15px;
+			background: #f8f9fa;
+			border-bottom: 1px solid #dee2e6;
+			cursor: default;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
 
-        .log-error { color: #e53e3e; }
-        .log-warning { color: #dd6b20; }
-        .log-success { color: #38a169; }
-        .log-failure { color: #e53e3e; font-weight: 600; }
-        .log-info { color: #3182ce; }
+		.group-info {
+			display: flex;
+			align-items: center;
+			flex: 1;
+		}
 
-        .search-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+		.group-toggle {
+			margin-right: 10px;
+			font-weight: bold;
+		}
 
-        #searchInput {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
+		.group-title {
+			font-weight: 600;
+			color: #333;
+		}
 
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            transform: translateX(400px);
-            transition: transform 0.3s;
-            z-index: 1000;
-        }
+		.group-meta {
+			font-size: 11px;
+			color: #666;
+			margin-top: 2px;
+		}
 
-        .notification.show {
-            transform: translateX(0);
-        }
+		.badge {
+			padding: 1px 4px;
+			border-radius: 2px;
+			margin-right: 5px;
+			color: white;
+			font-size: 10px;
+		}
 
-        .notification.success {
-            background: #48bb78;
-            color: white;
-        }
+		.badge-buffers {
+			background: #28a745;
+		}
 
-        .notification.error {
-            background: #f56565;
-            color: white;
-        }
+		.badge-other {
+			background: #6c757d;
+		}
 
-        .notification.info {
-            background: #4299e1;
-            color: white;
-        }
+		.group-copy-btn {
+			padding: 4px 8px;
+			background: #28a745;
+			color: white;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 11px;
+		}
 
-        .bookmarklet-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f7fafc;
-            border-radius: 8px;
-        }
+		.group-content {
+			display: block;
+		}
 
-        .bookmarklet-link {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: 500;
-            margin-top: 10px;
-        }
+		.variable-table {
+			width: 100%;
+			border-collapse: collapse;
+		}
 
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+		.variable-table th {
+			padding: 8px 10px;
+			border-bottom: 1px solid #dee2e6;
+			text-align: left;
+			font-weight: 600;
+			background: #f8f9fa;
+		}
 
-        .data-table th {
-            text-align: left;
-            padding: 10px;
-            background: #f7fafc;
-            border-bottom: 2px solid #e2e8f0;
-            font-weight: 600;
-            color: #4a5568;
-        }
+		.variable-table td {
+			padding: 8px 10px;
+			border-bottom: 1px solid #dee2e6;
+			vertical-align: middle;
+			line-height: 1.4;
+		}
 
-        .data-table td {
-            padding: 10px;
-            border-bottom: 1px solid #f7fafc;
-        }
+		.variable-table td.var-actions {
+			padding: 4px 8px;
+			vertical-align: middle;
+			height: auto;
+		}
 
-        .url-value {
-            color: #667eea;
-            text-decoration: none;
-        }
+		.variable-table tr:nth-child(even) {
+			background: #f8f9fa;
+		}
 
-        .url-value:hover {
-            text-decoration: underline;
-        }
+		.variable-name {
+			font-weight: 500;
+			min-width: 120px;
+		}
 
-        .token-value {
-            font-family: monospace;
-            color: #e53e3e;
-        }
-    </style>
+		.variable-value {
+			font-family: monospace;
+			font-size: 11px;
+			word-break: break-all;
+		}
+
+		.type-badge {
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 9px;
+			color: white;
+		}
+
+		.type-buffer {
+			background: #28a745;
+		}
+
+		.type-id {
+			background: #17a2b8;
+		}
+
+		.type-url {
+			background: #fd7e14;
+		}
+
+		.line-number {
+			color: #666;
+			font-size: 11px;
+		}
+
+		.var-actions {
+			display: flex;
+			flex-direction: row;
+			gap: 3px;
+			align-items: center;
+			justify-content: flex-start;
+			min-height: 28px;
+			padding: 2px 0;
+			width: 80px;
+			flex-wrap: nowrap;
+		}
+
+		.var-btn {
+			padding: 4px 6px;
+			border: none;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 10px;
+			color: white;
+			min-width: 20px;
+			height: 22px;
+			text-align: center;
+			vertical-align: middle;
+			flex-shrink: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			line-height: 1;
+			white-space: nowrap;
+		}
+
+		.var-btn-copy {
+			background: #28a745;
+		}
+
+		.var-btn-view {
+			background: #17a2b8;
+		}
+
+		.footer {
+			display: flex;
+			gap: 10px;
+			margin-top: 20px;
+		}
+
+		.btn-close {
+			padding: 10px 15px;
+			background: #6c757d;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+
+		.btn-clear {
+			padding: 10px 15px;
+			background: #dc3545;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			margin-left: auto;
+		}
+
+		.debug-section {
+			margin-top: 20px;
+			padding: 15px;
+			background: #fff3cd;
+			border: 1px solid #ffeaa7;
+			border-radius: 4px;
+			display: none;
+		}
+
+		.debug-toggle {
+			background: #ffc107;
+			color: #333;
+			border: none;
+			padding: 5px 10px;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 12px;
+			width: 85px;
+			height: 34px;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.debug-content {
+			margin-top: 10px;
+			font-family: monospace;
+			font-size: 11px;
+			white-space: pre-wrap;
+			max-height: 200px;
+			overflow-y: auto;
+			background: white;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 3px;
+		}
+
+		/* Log View Styles */
+		.log-view-content {
+			padding: 10px;
+			font-family: 'Courier New', monospace;
+			font-size: 12px;
+			line-height: 1.4;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			border-radius: 4px;
+			overflow-y: auto;
+			overflow-x: auto;
+			white-space: pre;
+		}
+
+		.log-view-content.word-wrap {
+			white-space: pre-wrap;
+			overflow-x: hidden;
+		}
+
+		.log-line {
+			margin: 0;
+			padding: 0;
+			line-height: 1.4;
+		}
+
+		.log-line:hover {
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		/* Log Level Styles */
+		.log-timestamp {
+			color: #569cd6;
+			font-weight: normal;
+		}
+
+		.log-level-inf {
+			color: #4ec9b0;
+		}
+
+		.log-level-err {
+			color: #f44747;
+		}
+
+		.log-level-wrn {
+			color: #ffcc02;
+		}
+
+		.log-component {
+			color: #9cdcfe;
+		}
+
+		.log-status-succeeded {
+			color: #4ec9b0;
+			font-weight: bold;
+		}
+
+		.log-status-failed {
+			color: #f44747;
+			font-weight: bold;
+		}
+
+		.log-test-case {
+			color: #c586c0;
+			font-weight: bold;
+		}
+
+		.log-operation {
+			color: #dcdcaa;
+		}
+
+		.log-buffer {
+			color: #ce9178;
+			font-weight: bold;
+		}
+
+		.log-duration {
+			color: #808080;
+			font-style: italic;
+		}
+
+		.log-message {
+			color: #d4d4d4;
+		}
+
+		.log-url {
+			color: #4fc1ff;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		.log-url:hover {
+			background: rgba(79, 193, 255, 0.2);
+		}
+
+		.log-guid {
+			color: #b5cea8;
+			font-family: monospace;
+			background: rgba(181, 206, 168, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		/* Additional log highlighting classes */
+		.log-buffer-name {
+			color: #4fc1ff;
+			font-weight: bold;
+		}
+
+		.log-buffer-value {
+			color: #ce9178;
+			background: rgba(206, 145, 120, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-request-operation {
+			color: #4fc1ff;
+			background: rgba(79, 193, 255, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-operation {
+			color: #4ec9b0;
+			background: rgba(78, 201, 176, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-time {
+			color: #dcdcaa;
+			font-weight: bold;
+		}
+
+		.log-status-code {
+			color: #569cd6;
+			font-weight: bold;
+		}
+
+		.log-json-block {
+			background: rgba(206, 145, 120, 0.1);
+			border-radius: 2px;
+			padding: 1px;
+		}
+
+		.log-json-key {
+			color: #9cdcfe;
+			font-weight: bold;
+		}
+
+		.log-json-colon {
+			color: #d4d4d4;
+		}
+
+		.log-json-string {
+			color: #ce9178;
+		}
+
+		.log-json-number {
+			color: #b5cea8;
+		}
+
+		.log-json-boolean {
+			color: #569cd6;
+		}
+
+		.log-json-bracket {
+			color: #ffd700;
+			font-weight: bold;
+		}
+
+		/* Table View Styles */
+		.table-view-content {
+			padding: 10px;
+			background: white;
+			border-radius: 4px;
+			overflow-y: auto;
+			overflow-x: auto;
+		}
+
+		.log-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-family: 'Courier New', monospace;
+			font-size: 12px;
+		}
+
+		.log-table th {
+			background: #f8f9fa;
+			border: 1px solid #dee2e6;
+			padding: 8px;
+			text-align: left;
+			font-weight: 600;
+			position: sticky;
+			top: 0;
+			z-index: 10;
+		}
+
+		.log-table td {
+			border: 1px solid #dee2e6;
+			padding: 6px 8px;
+			vertical-align: top;
+		}
+
+		.log-table tr:nth-child(even) {
+			background: #f8f9fa;
+		}
+
+		.log-table tr:hover {
+			background: #e8f4fd;
+		}
+
+		.level-indicator {
+			display: inline-block;
+			width: 20px;
+			text-align: center;
+			font-weight: bold;
+			color: #666;
+		}
+
+		.level-0 {
+			padding-left: 0px;
+		}
+
+		.level-1 {
+			padding-left: 20px;
+		}
+
+		.level-2 {
+			padding-left: 40px;
+		}
+
+		.level-3 {
+			padding-left: 60px;
+		}
+
+		.level-4 {
+			padding-left: 80px;
+		}
+
+		.table-timestamp {
+			color: #569cd6;
+			font-size: 11px;
+		}
+
+		.table-type {
+			font-weight: bold;
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-type-inf {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.table-type-err {
+			background: #f8d7da;
+			color: #721c24;
+		}
+
+		.table-type-wrn {
+			background: #fff3cd;
+			color: #856404;
+		}
+
+		.table-component {
+			background: #e2e3e5;
+			color: #383d41;
+			padding: 1px 3px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-status {
+			font-weight: bold;
+			padding: 2px 4px;
+			border-radius: 2px;
+			font-size: 10px;
+		}
+
+		.table-status-succeeded {
+			background: #d4edda;
+			color: #155724;
+		}
+
+		.table-status-failed {
+			background: #f8d7da;
+			color: #721c24;
+		}
+
+		.table-duration {
+			color: #6c757d;
+			font-style: italic;
+			font-size: 11px;
+		}
+
+		.table-message {
+			font-family: inherit;
+			word-break: break-word;
+		}
+
+		/* NEW: Enhanced type badges */
+		.type-json {
+			background: #e67e22;
+		}
+
+		.type-url {
+			background: #fd7e14;
+		}
+
+		.type-id {
+			background: #17a2b8;
+		}
+
+		.type-timestamp {
+			background: #6f42c1;
+		}
+
+		.type-token {
+			background: #dc3545;
+		}
+
+		/* ID value styling - like code blocks in Slack/GitHub */
+		.id-value {
+			font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+			font-size: 11px;
+			background: #f1f3f4;
+			color: #d73a49;
+			padding: 2px 4px;
+			border-radius: 3px;
+			border: 1px solid #e1e4e8;
+			font-weight: 500;
+		}
+
+		.badge-json {
+			background: #e67e22;
+		}
+
+		.badge-urls {
+			background: #fd7e14;
+		}
+
+		.badge-tokens {
+			background: #dc3545;
+		}
+
+		.timestamp {
+			color: #666;
+			font-size: 11px;
+			margin-left: 10px;
+		}
+
+		/* NEW: JSON container styles */
+		.json-container {
+			max-width: 100%;
+		}
+
+		.json-preview {
+			font-family: monospace;
+			font-size: 11px;
+			color: #666;
+			background: #f8f9fa;
+			padding: 5px;
+			border-radius: 3px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.json-full {
+			max-width: 100%;
+			overflow: auto;
+		}
+
+		.json-formatted {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			padding: 15px;
+			border-radius: 4px;
+			margin: 0;
+			overflow: auto;
+			max-height: 300px;
+		}
+
+		/* NEW: JSON syntax highlighting */
+		.json-key {
+			color: #9cdcfe;
+		}
+
+		.json-colon {
+			color: #d4d4d4;
+		}
+
+		.json-string {
+			color: #ce9178;
+		}
+
+		.json-number {
+			color: #b5cea8;
+		}
+
+		.json-boolean {
+			color: #569cd6;
+		}
+
+		.json-null {
+			color: #569cd6;
+		}
+
+		/* NEW: Enhanced variable table */
+		.variable-value-cell {
+			max-width: 400px;
+			word-break: break-word;
+			vertical-align: top;
+			line-height: 1.4;
+		}
+
+		.url-link {
+			color: #4fc1ff;
+			text-decoration: underline;
+		}
+
+		.url-link:hover {
+			color: #007bff;
+		}
+
+		/* NEW: Enhanced action buttons */
+		.var-btn-postman {
+			background: #ff6b35;
+		}
+
+		.var-btn-postman:hover {
+			background: #e55a2b;
+		}
+
+		/* NEW: View buttons styling */
+		.view-btn {
+			padding: 8px 15px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 12px;
+			margin-right: 5px;
+			transition: all 0.2s;
+		}
+
+		#variablesViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#logsViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#tableViewBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		#wordWrapBtn {
+			background: #6c757d;
+			color: white;
+		}
+
+		.view-btn.active {
+			transform: translateY(-1px);
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		}
+
+		#variablesViewBtn.active {
+			background: #17a2b8;
+		}
+
+		#logsViewBtn.active {
+			background: #28a745;
+		}
+
+		#tableViewBtn.active {
+			background: #6f42c1;
+		}
+
+		#wordWrapBtn.active {
+			background: #fd7e14;
+		}
+
+		/* NEW: Enhanced log highlighting */
+		.log-timestamp {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-level-INF {
+			color: #4fc1ff;
+		}
+
+		.log-level-ERR {
+			color: #f14c4c;
+			font-weight: bold;
+		}
+
+		.log-level-WAR {
+			color: #ffab00;
+		}
+
+		.log-level-DEB {
+			color: #9c9c9c;
+		}
+
+		.log-testcase {
+			color: #c586c0;
+			font-weight: bold;
+		}
+
+		.log-buffer-name {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-buffer-value {
+			color: #ce9178;
+		}
+
+		.log-url {
+			color: #4fc1ff;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		.log-url:hover {
+			color: #007bff;
+		}
+
+		.log-status-Succeeded {
+			color: #4fc1ff;
+			font-weight: bold;
+		}
+
+		.log-status-Failed {
+			color: #f14c4c;
+			font-weight: bold;
+		}
+
+		/* NEW: Request/Response operation highlighting */
+		.log-request-operation {
+			color: #007bff;
+			font-weight: bold;
+			background: rgba(0, 123, 255, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-operation {
+			color: #28a745;
+			font-weight: bold;
+			background: rgba(40, 167, 69, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-response-time {
+			color: #17a2b8;
+			font-weight: bold;
+			background: rgba(23, 162, 184, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		.log-status-code {
+			color: #6f42c1;
+			font-weight: bold;
+			background: rgba(111, 66, 193, 0.1);
+			padding: 1px 3px;
+			border-radius: 2px;
+		}
+
+		/* NEW: JSON highlighting in logs */
+		.log-json-block {
+			background: rgba(233, 149, 34, 0.15);
+			padding: 2px 4px;
+			border-radius: 3px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.log-json-key {
+			color: #9cdcfe;
+			font-weight: 500;
+		}
+
+		.log-json-colon {
+			color: #d4d4d4;
+		}
+
+		.log-json-string {
+			color: #ce9178;
+		}
+
+		.log-json-number {
+			color: #b5cea8;
+			font-weight: 500;
+		}
+
+		.log-json-boolean {
+			color: #569cd6;
+			font-weight: 500;
+		}
+
+		.log-json-bracket {
+			color: #ffd700;
+			font-weight: bold;
+		}
+
+		/* NEW: Toast notification styles */
+		.toast {
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			padding: 12px 20px;
+			border-radius: 4px;
+			z-index: 10000;
+			font-weight: 500;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			transform: translateX(100%);
+			transition: transform 0.3s ease;
+		}
+
+		.toast-success {
+			background: #28a745;
+			color: white;
+		}
+
+		.toast-error {
+			background: #dc3545;
+			color: white;
+		}
+
+		.toast-info {
+			background: #17a2b8;
+			color: white;
+		}
+
+		/* NEW: Value modal styles */
+		.value-modal {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.8);
+			z-index: 10000;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.modal-content {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			max-width: 80%;
+			max-height: 80%;
+			overflow: auto;
+			position: relative;
+		}
+
+		/* Responsive adjustments */
+		@media (max-width: 768px) {
+			.json-formatted {
+				font-size: 10px;
+				padding: 10px;
+			}
+
+			.variable-value-cell {
+				max-width: 200px;
+			}
+
+			.var-actions {
+				flex-direction: row;
+				gap: 2px;
+				width: 70px;
+			}
+
+			.var-btn {
+				font-size: 8px;
+				padding: 2px 4px;
+				min-width: 16px;
+				height: 18px;
+			}
+		}
+
+		/* Log line numbering */
+		.log-line {
+			position: relative;
+			padding-left: 0;
+		}
+
+		.log-line[data-line]:before {
+			content: attr(data-line);
+			position: absolute;
+			left: -60px;
+			width: 50px;
+			text-align: right;
+			color: #666;
+			font-size: 10px;
+			padding-right: 10px;
+			border-right: 1px solid #333;
+		}
+
+		/* Enhanced filters section */
+		.filters-content {
+			display: flex;
+			gap: 15px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.filter-label {
+			font-weight: 600;
+			color: #333;
+			margin-right: 5px;
+		}
+
+		/* Table view enhancements */
+		.table-view {
+			padding: 20px;
+			text-align: center;
+			color: #666;
+			font-style: italic;
+		}
+
+		/* Enhanced table styles for hierarchy */
+		.table-line-number {
+			width: 60px;
+			text-align: right;
+			color: #666;
+			font-size: 11px;
+		}
+
+		.table-operation {
+			max-width: 300px;
+			word-break: break-word;
+		}
+
+		.table-variable {
+			max-width: 150px;
+			word-break: break-word;
+			font-weight: 500;
+		}
+
+		.table-value {
+			max-width: 200px;
+			word-break: break-word;
+			font-family: monospace;
+			font-size: 11px;
+		}
+
+		.table-type-badge {
+			text-align: center;
+		}
+
+		/* Row type styling */
+		.table-row-testcase {
+			background: #e8f5e8 !important;
+			font-weight: bold;
+		}
+
+		.table-row-testcase:hover {
+			background: #d4edda !important;
+		}
+
+		.table-row-operation {
+			background: #f8f9fa;
+		}
+
+		.table-row-operation:hover {
+			background: #e2e6ea;
+		}
+
+		.table-row-variable {
+			background: #fff3cd;
+		}
+
+		.table-row-variable:hover {
+			background: #ffeaa7;
+		}
+
+		.table-row-message {
+			background: white;
+		}
+
+		.table-row-status {
+			background: #e2e6ea;
+			font-style: italic;
+		}
+
+		.table-row-status:hover {
+			background: #d6d8db;
+		}
+
+		/* New condensed action styling */
+		.table-row-action {
+			background: #f0f8ff;
+			border-left: 3px solid #007bff;
+		}
+
+		.table-row-action:hover {
+			background: #e6f3ff;
+		}
+
+		.sub-action {
+			font-size: 11px;
+			color: #666;
+			margin-top: 2px;
+			padding-left: 10px;
+			font-style: italic;
+		}
+
+		/* Test case header styling */
+		.test-case-header {
+			background: #e8f5e8;
+			padding: 15px 20px;
+			margin-bottom: 15px;
+			border-radius: 8px;
+			border-left: 4px solid #28a745;
+		}
+
+		.test-case-header h3 {
+			margin: 0;
+			color: #155724;
+			font-size: 16px;
+			font-weight: 600;
+		}
+
+		/* Status column styling */
+		.table-status-column {
+			text-align: center;
+			vertical-align: middle;
+		}
+
+		/* Sub-operation styling */
+		.table-row-sub-operation {
+			background: #f8f9fa;
+		}
+
+		.table-row-sub-operation:hover {
+			background: #e9ecef;
+		}
+
+		/* Indentation for hierarchy - using text indentation */
+		.level-0 .table-operation {
+			padding-left: 8px;
+		}
+
+		.level-1 .table-operation {
+			padding-left: 24px;
+		}
+
+		.level-2 .table-operation {
+			padding-left: 40px;
+		}
+
+		.level-3 .table-operation {
+			padding-left: 56px;
+		}
+
+		.level-4 .table-operation {
+			padding-left: 72px;
+		}
+
+		/* Add visual hierarchy indicators */
+		.level-1 .table-operation::before {
+			content: "├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-2 .table-operation::before {
+			content: "│  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-3 .table-operation::before {
+			content: "│  │  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		.level-4 .table-operation::before {
+			content: "│  │  │  ├─ ";
+			color: #6c757d;
+			font-weight: normal;
+		}
+
+		/* NEW: Token value styling */
+		.token-value {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #fff3cd;
+			padding: 2px 4px;
+			border-radius: 3px;
+			border: 1px solid #ffeaa7;
+			cursor: pointer;
+		}
+
+		.token-value:hover {
+			background: #fff1b3;
+		}
+
+		/* Ensure all content is visible - debug styles */
+		.group {
+			display: block !important;
+			visibility: visible !important;
+		}
+
+		.group-content {
+			display: block !important;
+			visibility: visible !important;
+		}
+
+		.variable-table {
+			display: table !important;
+			visibility: visible !important;
+		}
+
+		.variable-table tbody,
+		.variable-table thead {
+			display: table-row-group !important;
+			visibility: visible !important;
+		}
+
+		.variable-table tr {
+			display: table-row !important;
+			visibility: visible !important;
+		}
+
+		.variable-table td,
+		.variable-table th {
+			display: table-cell !important;
+			visibility: visible !important;
+		}
+
+		/* NEW: Full JSON display styling */
+		.json-container-full {
+			max-width: 100%;
+			margin: 5px 0;
+		}
+
+		.json-context {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 8px;
+			padding: 4px 8px;
+			background: #f8f9fa;
+			border-radius: 4px;
+			border-left: 3px solid #e67e22;
+		}
+
+		.context-operation {
+			font-weight: 600;
+			color: #333;
+			font-size: 12px;
+		}
+
+		.context-type {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 10px;
+			font-weight: bold;
+			text-transform: uppercase;
+		}
+
+		.context-request {
+			background: #007bff;
+			color: white;
+		}
+
+		.context-response {
+			background: #28a745;
+			color: white;
+		}
+
+		.context-status {
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 10px;
+			font-weight: bold;
+			background: #17a2b8;
+			color: white;
+		}
+
+		.json-full-display {
+			max-width: 100%;
+			overflow: auto;
+		}
+
+		.json-formatted-full {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			padding: 12px;
+			border-radius: 4px;
+			margin: 0;
+			overflow: auto;
+			max-height: none;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		/* JSON row styling */
+		.json-row {
+			background: #f8f9fa !important;
+		}
+
+		.json-row:nth-child(even) {
+			background: #f1f3f4 !important;
+		}
+
+		/* Table JSON display styles */
+		.json-table-container {
+			max-width: 100%;
+		}
+
+		.json-preview-line {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			cursor: pointer;
+			padding: 4px;
+			border-radius: 3px;
+			background: #f8f9fa;
+			border: 1px solid #e9ecef;
+		}
+
+		.json-preview-line:hover {
+			background: #e9ecef;
+		}
+
+		.json-indicator {
+			color: #e67e22;
+			font-size: 14px;
+		}
+
+		.json-preview-line code {
+			flex: 1;
+			font-size: 11px;
+			background: none;
+			border: none;
+			padding: 0;
+			color: #333;
+		}
+
+		.json-toggle {
+			color: #6c757d;
+			font-weight: bold;
+			font-size: 12px;
+			transition: transform 0.2s;
+		}
+
+		.json-toggle.expanded {
+			transform: rotate(90deg);
+		}
+
+		.json-expanded-content {
+			margin-top: 8px;
+			border: 1px solid #e9ecef;
+			border-radius: 4px;
+			overflow: hidden;
+		}
+
+		.json-formatted-table {
+			font-family: 'Courier New', monospace;
+			font-size: 10px;
+			background: #1e1e1e;
+			color: #d4d4d4;
+			padding: 8px;
+			margin: 0;
+			overflow: auto;
+			max-height: 300px;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		/* Table action buttons */
+		.table-btn {
+			padding: 2px 4px;
+			border: none;
+			border-radius: 2px;
+			cursor: pointer;
+			font-size: 10px;
+			color: white;
+			min-width: 18px;
+			height: 20px;
+			text-align: center;
+			margin-right: 2px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.table-btn-postman {
+			background: #ff6b35;
+		}
+
+		.table-btn-copy {
+			background: #28a745;
+		}
+
+		.table-btn-view {
+			background: #17a2b8;
+		}
+
+		.table-value-code {
+			font-family: 'Courier New', monospace;
+			font-size: 11px;
+			background: #f8f9fa;
+			padding: 2px 4px;
+			border-radius: 2px;
+			border: 1px solid #e9ecef;
+		}
+
+		.table-actions {
+			text-align: center;
+			vertical-align: middle;
+		}
+	</style>
 </head>
+
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>
-                <div class="logo">TC</div>
-                Tosca Cloud Log Parser
-            </h1>
-        </div>
+	<div class="container">
+		<div class="header">
+			<div class="logo">TL</div>
+			<h1>Tosca Log Parser v2.1</h1>
+		</div>
 
-        <div class="main-content">
-            <div class="input-section">
-                <div class="input-controls">
-                    <button id="parseButton" class="button button-primary">Parse Logs</button>
-                    <button id="clearButton" class="button button-secondary">Clear</button>
-                    <label class="button button-secondary">
-                        Upload File
-                        <input type="file" id="fileUpload" accept=".txt,.log" style="display: none;">
-                    </label>
-                </div>
-                <textarea id="logInput" placeholder="Paste your Tosca Cloud logs here..."></textarea>
-            </div>
+		<div class="main-content">
+			<!-- Input Section -->
+			<div class="input-section">
+				<div class="input-tabs">
+					<button id="pasteBtn" class="input-btn active">📝 Paste Logs</button>
+					<button id="fileBtn" class="input-btn">📁 Load File</button>
+					<button id="debugBtn" class="debug-toggle">🐛 Debug</button>
+				</div>
 
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search..." disabled>
-                <button id="exportButton" class="button button-secondary" disabled>Export</button>
-            </div>
+				<div id="pasteMode" class="input-mode active">
+					<textarea id="logInput" placeholder="Paste your Tosca logs here..."></textarea>
+				</div>
 
-            <div class="tabs">
-                <button class="tab-button active" data-tab="variables">Variables</button>
-                <button class="tab-button" data-tab="logs">Logs</button>
-                <button class="tab-button" data-tab="table">Table</button>
-                <button class="tab-button" data-tab="bookmarklet">Bookmarklet</button>
-            </div>
+				<div id="fileMode" class="input-mode">
+					<input type="file" id="fileInput" accept=".json,.txt,.log" class="file-input">
+				</div>
+			</div>
 
-            <div id="variablesView" class="view-container active">
-                <div id="variablesContainer" class="content-area">
-                    <div class="empty-state">No data to display. Please parse some logs first.</div>
-                </div>
-            </div>
+			<button id="parseBtn" class="parse-btn">🔄 Parse Logs</button>
 
-            <div id="logsView" class="view-container">
-                <div id="logsContainer" class="content-area">
-                    <div class="empty-state">No logs to display. Please parse some logs first.</div>
-                </div>
-            </div>
+			<!-- Combined Header -->
+			<div id="combinedHeader" class="filters-section" style="display: none;">
+				<div class="filters-content">
+					<input type="text" id="searchFilter" placeholder="Search..." class="search-input"
+						style="width: 200px;">
+					<span class="action-buttons" style="margin-left: 15px;">
+						<button id="variablesViewBtn" class="view-btn active">📊 Variables</button>
+						<button id="logsViewBtn" class="view-btn">📋 Logs</button>
+						<button id="tableViewBtn" class="view-btn">📋 Table</button>
+						<button id="wordWrapBtn" class="view-btn" style="display: none;">📄 Wrap</button>
+						<button id="copyAllBtn" class="action-btn btn-copy">📋 Copy All</button>
+						<button id="exportBtn" class="action-btn btn-export">💾 Export JSON</button>
+					</span>
+					<span id="combinedCount" class="buffer-count" style="margin-left: auto;"></span>
+				</div>
+			</div>
 
-            <div id="tableView" class="view-container">
-                <div id="tableContainer" class="content-area">
-                    <div class="empty-state">No data to display. Please parse some logs first.</div>
-                </div>
-            </div>
+			<!-- Results Section -->
+			<div class="results-section">
+				<div class="results-container">
+					<div id="resultsPlaceholder" class="results-placeholder">
+						<p>📊</p>
+						<p>Parse logs to see extracted variables here</p>
+					</div>
+					<div id="resultsContent" class="results-content"></div>
+					<div id="logViewContent" class="log-view-content" style="display: none;"></div>
+					<div id="tableViewContent" class="table-view-content" style="display: none;"></div>
+				</div>
+			</div>
 
-            <div id="bookmarkletView" class="view-container">
-                <div id="bookmarkletContainer" class="content-area">
-                    <div class="bookmarklet-section">
-                        <h3>Tosca Log Extractor Bookmarklet</h3>
-                        <p>Drag this link to your bookmarks bar to easily extract logs from Tosca Cloud pages:</p>
-                        <a href="#" id="bookmarkletLink" class="bookmarklet-link">Tosca Log Extractor</a>
-                        <div style="margin-top: 20px;">
-                            <button id="generateBookmarklet" class="button button-primary">Generate Bookmarklet</button>
-                            <button id="copyBookmarklet" class="button button-secondary">Copy Bookmarklet Code</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+			<!-- Debug Section -->
+			<div id="debugSection" class="debug-section">
+				<div id="debugContent" class="debug-content"></div>
+			</div>
 
-    <div id="notification" class="notification"></div>
+			<!-- Footer -->
+			<div class="footer">
+				<button id="clearBtn" class="btn-clear">🗑️ Clear Results</button>
+			</div>
+		</div>
+	</div>
 
-    <script src="parser.js"></script>
-    <script>
-        let parser;
-        let currentData = null;
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            parser = new ToscaLogParser();
-            
-            // Tab switching
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    switchTab(button.dataset.tab);
-                });
-            });
-            
-            // Parse button
-            document.getElementById('parseButton').addEventListener('click', parseLogs);
-            
-            // File upload
-            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
-            
-            // Search functionality
-            document.getElementById('searchInput').addEventListener('input', performSearch);
-            
-            // Clear button
-            document.getElementById('clearButton').addEventListener('click', clearAll);
-            
-            // Export button
-            document.getElementById('exportButton').addEventListener('click', exportData);
-            
-            // Generate bookmarklet button
-            document.getElementById('generateBookmarklet').addEventListener('click', generateBookmarklet);
-            
-            // Copy bookmarklet button
-            document.getElementById('copyBookmarklet').addEventListener('click', copyBookmarkletCode);
-            
-            // Initialize bookmarklet
-            updateBookmarkletLink();
-        });
-        
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tabName);
-            });
-            
-            document.querySelectorAll('.view-container').forEach(view => {
-                view.classList.toggle('active', view.id === tabName + 'View');
-            });
-        }
-        
-        function parseLogs() {
-            const logText = document.getElementById('logInput').value;
-            if (!logText.trim()) {
-                showNotification('Please enter some log content', 'error');
-                return;
-            }
-            
-            try {
-                currentData = parser.parse(logText);
-                displayResults();
-                showNotification(`Parsed ${currentData.variables.length} variables from ${currentData.summary.totalLines} lines`);
-            } catch (error) {
-                showNotification('Error parsing logs: ' + error.message, 'error');
-            }
-        }
-        
-        function displayResults() {
-            if (!currentData) return;
-            
-            // Display variables
-            displayVariables();
-            
-            // Display logs
-            displayLogs();
-            
-            // Display table
-            displayTable();
-            
-            // Enable action buttons
-            document.getElementById('exportButton').disabled = false;
-            document.getElementById('searchInput').disabled = false;
-        }
-        
-        function displayVariables() {
-            const container = document.getElementById('variablesContainer');
-            container.innerHTML = '';
-            
-            if (currentData.variables.length === 0) {
-                container.innerHTML = '<div class="empty-state">No variables found</div>';
-                return;
-            }
-            
-            // Group variables by test case
-            const groups = {};
-            currentData.variables.forEach(variable => {
-                const key = variable.context.testCase || 'Global';
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(variable);
-            });
-            
-            // Display each group
-            Object.entries(groups).forEach(([testCase, variables]) => {
-                const groupEl = document.createElement('div');
-                groupEl.className = 'variable-group';
-                groupEl.innerHTML = `
-                    <h3>${testCase}</h3>
-                    <table class="variables-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Value</th>
-                                <th>Type</th>
-                                <th>Line</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${variables.map(v => `
-                                <tr>
-                                    <td>${v.name}</td>
-                                    <td class="value-cell">${formatValue(v.value, v.type)}</td>
-                                    <td><span class="type-badge type-${v.type.toLowerCase()}">${v.type}</span></td>
-                                    <td>${v.lineNumber}</td>
-                                    <td>
-                                        <button class="copy-btn" onclick="copyValue('${escapeQuotes(v.value)}')" title="Copy value">📋</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-                container.appendChild(groupEl);
-            });
-        }
-        
-        function displayLogs() {
-            const container = document.getElementById('logsContainer');
-            container.innerHTML = '';
-            
-            const logsHtml = currentData.logs.map(log => {
-                const typeClass = `log-${log.type}`;
-                return `<div class="log-line ${typeClass}" data-line="${log.lineNumber}">
-                    <span class="line-number">${log.lineNumber}</span>
-                    <span class="log-content">${escapeHtml(log.content)}</span>
-                </div>`;
-            }).join('');
-            
-            container.innerHTML = logsHtml;
-        }
-        
-        function displayTable() {
-            const container = document.getElementById('tableContainer');
-            container.innerHTML = '';
-            
-            if (currentData.variables.length === 0) {
-                container.innerHTML = '<div class="empty-state">No data to display</div>';
-                return;
-            }
-            
-            const tableHtml = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Test Case</th>
-                            <th>Variable Name</th>
-                            <th>Value</th>
-                            <th>Type</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${currentData.variables.map(v => `
-                            <tr>
-                                <td>${v.context.testCase || 'Global'}</td>
-                                <td>${v.name}</td>
-                                <td class="value-cell">${formatValue(v.value, v.type)}</td>
-                                <td><span class="type-badge type-${v.type.toLowerCase()}">${v.type}</span></td>
-                                <td>${v.timestamp || ''}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            
-            container.innerHTML = tableHtml;
-        }
-        
-        function formatValue(value, type) {
-            if (type === 'JSON') {
-                try {
-                    const parsed = JSON.parse(value);
-                    return `<pre class="json-value">${JSON.stringify(parsed, null, 2)}</pre>`;
-                } catch (e) {
-                    return escapeHtml(value);
-                }
-            }
-            
-            if (type === 'Token') {
-                return `<span class="token-value">${value.substring(0, 20)}...</span>`;
-            }
-            
-            if (type === 'URL') {
-                return `<a href="${value}" target="_blank" class="url-value">${value}</a>`;
-            }
-            
-            return escapeHtml(value);
-        }
-        
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                document.getElementById('logInput').value = e.target.result;
-                parseLogs();
-            };
-            reader.readAsText(file);
-        }
-        
-        function performSearch() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const activeView = document.querySelector('.view-container.active');
-            
-            if (activeView.id === 'variablesView') {
-                document.querySelectorAll('.variables-table tr').forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchTerm) ? '' : 'none';
-                });
-            } else if (activeView.id === 'logsView') {
-                document.querySelectorAll('.log-line').forEach(line => {
-                    const text = line.textContent.toLowerCase();
-                    line.style.display = text.includes(searchTerm) ? '' : 'none';
-                });
-            }
-        }
-        
-        function clearAll() {
-            document.getElementById('logInput').value = '';
-            currentData = null;
-            document.querySelectorAll('.view-container .content-area').forEach(area => {
-                if (area.id !== 'bookmarkletContainer') {
-                    area.innerHTML = '<div class="empty-state">No data to display. Please parse some logs first.</div>';
-                }
-            });
-            document.getElementById('exportButton').disabled = true;
-            document.getElementById('searchInput').disabled = true;
-            document.getElementById('searchInput').value = '';
-        }
-        
-        function exportData() {
-            if (!currentData) return;
-            
-            const exportObj = {
-                timestamp: new Date().toISOString(),
-                summary: currentData.summary,
-                variables: currentData.variables
-            };
-            
-            const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `tosca-variables-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNotification('Data exported successfully');
-        }
-        
-        function generateBookmarklet() {
-            updateBookmarkletLink();
-            showNotification('Bookmarklet generated successfully');
-        }
-        
-        function updateBookmarkletLink() {
-            // Bookmarklet code - minified version of the log extractor
-            const bookmarkletCode = `(function(){function s(m,t=!0){const n=document.createElement('div');n.textContent=m,n.style.cssText=\`position:fixed;top:20px;right:20px;padding:12px 20px;background:\${t?'#28a745':'#dc3545'};color:white;border-radius:6px;z-index:999999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.3);max-width:300px;\`,document.body.appendChild(n),setTimeout(()=>{n.remove()},3e3)}async function c(t){try{if(navigator.clipboard)await navigator.clipboard.writeText(t);else{const a=document.createElement('textarea');a.value=t,a.style.position='fixed',a.style.left='-999999px',document.body.appendChild(a),a.select(),document.execCommand('copy'),document.body.removeChild(a)}return!0}catch(e){return console.error('Copy failed:',e),!1}}function f(){const ss=['.MuiBox-root.css-0','[class*="MuiBox"][class*="css-"]','[data-testid*="log"]','.log-container','.tosca-log-container','.execution-log','.console-output','pre','textarea[readonly]'];for(const s of ss){const es=document.querySelectorAll(s);for(const e of es){const t=e.textContent||e.innerText;if(t&&t.length>100&&(t.includes('[INF][TBox]')||t.includes('Starting TestCase')||t.includes('Buffer with name')))return e}}return null}try{const l=f();if(!l){s('No Tosca logs found on this page',!1);return}const t=l.textContent||l.innerText;if(!t||t.length<100){s('Log container found but appears empty',!1);return}c(t).then(r=>{if(r){const n=t.split('\\n').length,k=(t.length/1024).toFixed(1);s(\`Tosca logs copied! \${n} lines, \${k}KB\`)}else s('Failed to copy logs to clipboard',!1)})}catch(e){console.error('Tosca log copier error:',e),s('Error extracting logs: '+e.message,!1)}})();`;
-            
-            const link = document.getElementById('bookmarkletLink');
-            link.href = 'javascript:' + encodeURIComponent(bookmarkletCode);
-        }
-        
-        function copyBookmarkletCode() {
-            const bookmarkletCode = document.getElementById('bookmarkletLink').href;
-            navigator.clipboard.writeText(bookmarkletCode).then(() => {
-                showNotification('Bookmarklet code copied to clipboard');
-            }).catch(() => {
-                showNotification('Failed to copy bookmarklet code', 'error');
-            });
-        }
-        
-        function copyValue(value) {
-            navigator.clipboard.writeText(value).then(() => {
-                showNotification('Value copied to clipboard');
-            }).catch(() => {
-                showNotification('Failed to copy value', 'error');
-            });
-        }
-        
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = `notification ${type} show`;
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        function escapeQuotes(text) {
-            return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        }
-    </script>
+	<script>
+		// Global function for toggling JSON in table view
+		function toggleTableJson(jsonId) {
+			const content = document.getElementById(jsonId);
+			const toggle = document.getElementById(jsonId + '-toggle');
+
+			if (content && toggle) {
+				const isExpanded = content.style.display !== 'none';
+
+				if (isExpanded) {
+					content.style.display = 'none';
+					toggle.textContent = '▶';
+					toggle.classList.remove('expanded');
+				} else {
+					content.style.display = 'block';
+					toggle.textContent = '▼';
+					toggle.classList.add('expanded');
+				}
+			}
+		}
+	</script>
+	<script type="module" src="js/ToscaLogParserApp.js"></script>
 </body>
+
 </html>
