@@ -806,7 +806,7 @@ class UIManager {
 		);
 	}
 
-	// Display table with hierarchical grouping
+	// Display table with hierarchical formatting (like your formatting idea)
 	displayHierarchicalTable(hierarchicalGroups, searchTerm = '') {
 		const container = document.getElementById('tableViewContent');
 
@@ -815,54 +815,30 @@ class UIManager {
 			return;
 		}
 
-		let html = '<div class="table-view-content">';
+		let html = '<div class="structured-log-view">';
 
 		// Render each test case as a separate section
 		hierarchicalGroups.forEach(group => {
 			if (group.type === 'testcase') {
 				// Create test case header
 				html += `
-					<div class="test-case-header">
-						<h3>📋 Test Case: ${this.escapeHtml(group.name)}</h3>
-						<div class="test-case-meta">
-							<span class="timestamp">${this.formatTimestamp(group.timestamp)}</span>
-							<span class="log-count">${this.countTotalLogs(group)} log entries</span>
-						</div>
+					<div class="test-case-header-new">
+						<div class="test-case-title">Starting TestCase "${this.escapeHtml(group.name)}"</div>
 					</div>
 				`;
 
-				// Create table for this test case's logs
-				html += `
-					<table class="log-table">
-						<thead>
-							<tr>
-								<th style="width: 80px;">Line</th>
-								<th style="width: 120px;">Time</th>
-								<th style="width: 60px;">Level</th>
-								<th>Operation/Message</th>
-								<th style="width: 150px;">Variable</th>
-								<th>Value</th>
-								<th style="width: 60px;">Type</th>
-								<th style="width: 80px;">Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-				`;
+				// Render structured logs for this test case
+				html += this.renderStructuredLogs(group, searchTerm, 0);
 
-				// Render all logs for this test case
-				html += this.renderTestCaseLogs(group, searchTerm, 0);
-
-				html += `
-						</tbody>
-					</table>
-				`;
+				// Test case completion
+				html += `<div class="test-case-completion">TestCase COMPLETED</div>`;
 			}
 		});
 
 		html += '</div>';
 		container.innerHTML = html;
 
-		console.log('🖥️ UI: Hierarchical table displayed, groups:', hierarchicalGroups.length);
+		console.log('🖥️ UI: Structured table displayed, groups:', hierarchicalGroups.length);
 	}
 
 	// Check if string is valid JSON
@@ -894,32 +870,110 @@ class UIManager {
 		return JSON.stringify(str).slice(1, -1);
 	}
 
-	// Render all logs for a test case (flattened structure)
-	renderTestCaseLogs(group, searchTerm = '', level = 0) {
+	// Render structured logs following the formatting idea
+	renderStructuredLogs(group, searchTerm = '', level = 0) {
 		let html = '';
 		
 		// Render all lines from this group
 		group.lines?.forEach(logLine => {
-			html += this.renderLogTableRow(logLine, searchTerm, level);
+			html += this.renderStructuredLogLine(logLine, searchTerm, level);
 		});
 
 		// Recursively render sub-groups
 		group.subGroups?.forEach(subGroup => {
-			html += this.renderTestCaseLogs(subGroup, searchTerm, level + 1);
+			html += this.renderStructuredLogs(subGroup, searchTerm, level + 1);
 		});
 
 		return html;
 	}
 
-	// Count total logs in a test case group
-	countTotalLogs(group) {
-		let count = group.lines?.length || 0;
-		
-		group.subGroups?.forEach(subGroup => {
-			count += this.countTotalLogs(subGroup);
-		});
-		
-		return count;
+	// Render a single structured log line
+	renderStructuredLogLine(logInfo, searchTerm = '', level = 0) {
+		// Apply search filter
+		if (searchTerm && !this.matchesTableSearch(logInfo, searchTerm.toLowerCase())) {
+			return '';
+		}
+
+		const indent = '    '.repeat(level);
+		let html = '';
+
+		// Handle different log types
+		if (logInfo.type === 'variable' && logInfo.variable && logInfo.value) {
+			// Buffer variable line
+			if (logInfo.jsonBody) {
+				// JSON buffer variable with expansion
+				html += `
+					<div class="log-line-structured level-${level}">
+						<span class="log-indent">${indent}</span>
+						<span class="log-variable-name">"${this.escapeHtml(logInfo.variable)}"</span> - 
+						<span class="log-buffer-set">Buffer set:</span> 
+						<span class="log-json-toggle" onclick="toggleStructuredJson('json-${logInfo.lineNumber}')">
+							{...} <span class="json-expand-icon">▼</span>
+						</span>
+						<div id="json-${logInfo.lineNumber}" class="structured-json-content">
+							<pre class="structured-json">${this.formatJSONWithHighlighting(logInfo.value)}</pre>
+						</div>
+					</div>
+				`;
+			} else {
+				// Regular buffer variable
+				html += `
+					<div class="log-line-structured level-${level}">
+						<span class="log-indent">${indent}</span>
+						<span class="log-variable-name">"${this.escapeHtml(logInfo.variable)}"</span> - 
+						<span class="log-buffer-set">Buffer set:</span> 
+						<span class="log-buffer-value">${this.escapeHtml(logInfo.value)}</span>
+						<button class="structured-copy-btn" onclick="window.app.copyToClipboard('${this.escapeForJS(logInfo.value)}')" title="Copy">📋</button>
+					</div>
+				`;
+			}
+		} else if (logInfo.operation && logInfo.operation.includes('REQUEST:')) {
+			// REQUEST section
+			html += `
+				<div class="log-line-structured level-${level}">
+					<span class="log-indent">${indent}</span>
+					<span class="log-request-label">REQUEST:</span>
+				</div>
+			`;
+		} else if (logInfo.operation && logInfo.operation.includes('RESPONSE:')) {
+			// RESPONSE section with timing
+			const timing = logInfo.operation.match(/\((\d+)\s*ms\)/);
+			const timingStr = timing ? ` (${timing[1]} ms)` : '';
+			html += `
+				<div class="log-line-structured level-${level}">
+					<span class="log-indent">${indent}</span>
+					<span class="log-response-label">RESPONSE:</span>
+					<span class="log-timing">${timingStr}</span>
+				</div>
+			`;
+		} else if (logInfo.operation && logInfo.operation.includes('FAILED')) {
+			// Failed operation
+			html += `
+				<div class="log-line-structured level-${level}">
+					<span class="log-indent">${indent}</span>
+					<span class="log-operation-name">"${this.escapeHtml(logInfo.operation.replace(' - FAILED', ''))}"</span> - 
+					<span class="log-failed">FAILED</span>
+				</div>
+			`;
+		} else if (logInfo.operation) {
+			// Regular operation
+			html += `
+				<div class="log-line-structured level-${level}">
+					<span class="log-indent">${indent}</span>
+					<span class="log-operation-name">"${this.escapeHtml(logInfo.operation)}"</span>
+				</div>
+			`;
+		} else {
+			// Generic message
+			html += `
+				<div class="log-line-structured level-${level}">
+					<span class="log-indent">${indent}</span>
+					<span class="log-message">${this.escapeHtml(logInfo.content || logInfo.originalLine || '')}</span>
+				</div>
+			`;
+		}
+
+		return html;
 	}
 
 	// Render individual log table row
@@ -1035,5 +1089,21 @@ class UIManager {
 		);
 	}
 }
+
+// Global function for JSON toggling in structured view
+window.toggleStructuredJson = function(elementId) {
+	const element = document.getElementById(elementId);
+	const toggle = element?.previousElementSibling?.querySelector('.json-expand-icon');
+	
+	if (element && toggle) {
+		if (element.style.display === 'none' || !element.style.display) {
+			element.style.display = 'block';
+			toggle.textContent = '▲';
+		} else {
+			element.style.display = 'none';
+			toggle.textContent = '▼';
+		}
+	}
+};
 
 export default UIManager;

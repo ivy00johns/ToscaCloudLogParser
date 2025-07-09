@@ -1652,3 +1652,182 @@ body {
 	text-align: center;
 	vertical-align: middle;
 }
+
+/* NEW: Structured Log View Styles (based on formatting idea) */
+.structured-log-view {
+	padding: 20px;
+	font-family: 'Courier New', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+	background: #f8f9fa;
+	border-radius: 8px;
+}
+
+.test-case-header-new {
+	margin-bottom: 20px;
+	padding: 15px 0;
+	border-bottom: 2px solid #dee2e6;
+}
+
+.test-case-title {
+	font-weight: bold;
+	font-size: 14px;
+	color: #2c3e50;
+	background: #e8f5e8;
+	padding: 8px 12px;
+	border-radius: 4px;
+	border-left: 4px solid #28a745;
+}
+
+.test-case-completion {
+	margin-top: 20px;
+	padding: 8px 12px;
+	font-weight: bold;
+	color: #155724;
+	background: #d4edda;
+	border-radius: 4px;
+	border-left: 4px solid #28a745;
+}
+
+.log-line-structured {
+	margin: 2px 0;
+	padding: 2px 0;
+	display: flex;
+	align-items: flex-start;
+	flex-wrap: wrap;
+}
+
+.log-indent {
+	white-space: pre;
+	color: #6c757d;
+}
+
+.log-operation-name {
+	color: #2c3e50;
+	font-weight: 500;
+}
+
+.log-variable-name {
+	color: #6f42c1;
+	font-weight: 600;
+}
+
+.log-buffer-set {
+	color: #28a745;
+	font-weight: 600;
+	margin: 0 4px;
+}
+
+.log-buffer-value {
+	color: #e83e8c;
+	background: rgba(232, 62, 140, 0.1);
+	padding: 1px 4px;
+	border-radius: 3px;
+	margin-right: 8px;
+}
+
+.log-request-label {
+	color: #007bff;
+	font-weight: bold;
+	background: rgba(0, 123, 255, 0.1);
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+
+.log-response-label {
+	color: #28a745;
+	font-weight: bold;
+	background: rgba(40, 167, 69, 0.1);
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+
+.log-timing {
+	color: #17a2b8;
+	font-weight: 500;
+	margin-left: 8px;
+}
+
+.log-failed {
+	color: #dc3545;
+	font-weight: bold;
+	background: rgba(220, 53, 69, 0.1);
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+
+.log-message {
+	color: #495057;
+}
+
+.log-json-toggle {
+	color: #fd7e14;
+	cursor: pointer;
+	font-weight: 500;
+	margin-left: 8px;
+}
+
+.log-json-toggle:hover {
+	background: rgba(253, 126, 20, 0.1);
+	border-radius: 3px;
+	padding: 1px 4px;
+}
+
+.json-expand-icon {
+	font-size: 10px;
+	margin-left: 4px;
+}
+
+.structured-json-content {
+	width: 100%;
+	margin-top: 8px;
+	margin-left: 20px;
+	display: none;
+}
+
+.structured-json {
+	background: #1e1e1e;
+	color: #d4d4d4;
+	padding: 12px;
+	border-radius: 4px;
+	font-size: 11px;
+	overflow: auto;
+	max-height: 300px;
+	border-left: 3px solid #fd7e14;
+}
+
+.structured-copy-btn {
+	background: #28a745;
+	color: white;
+	border: none;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 10px;
+	cursor: pointer;
+	margin-left: 8px;
+}
+
+.structured-copy-btn:hover {
+	background: #218838;
+}
+
+/* Level-based indentation */
+.level-0 .log-indent {
+	width: 0px;
+}
+
+.level-1 .log-indent {
+	width: 20px;
+}
+
+.level-2 .log-indent {
+	width: 40px;
+}
+
+.level-3 .log-indent {
+	width: 60px;
+}
+
+.level-4 .log-indent {
+	width: 80px;
+}
